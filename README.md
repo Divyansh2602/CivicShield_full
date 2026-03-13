@@ -234,27 +234,28 @@ GET
 /report/{id}
 Generate PDF report
 ```
-🧪 How to Run
+🧪 How to Run (Local)
 ```bash
-git clone https://github.com/Divyansh2602/civicshield-ai.git
-cd civicshield-ai
+# 1. Clone repo
+git clone https://github.com/Divyansh2602/CivicShield_full.git
+cd CivicShield_full
 
-# Terminal 1: Start Backend Engine
+# 2. Python backend
 python -m venv .venv
-# On Windows
+# Windows
 .venv\Scripts\activate
-# On Linux/Mac
+# Linux / macOS
 source .venv/bin/activate
 
 pip install -r requirements.txt
-python -m uvicorn main:app --reload
+python main.py  # runs FastAPI on http://localhost:8000
 
-# Terminal 2: Start Next.js Frontend
+# 3. Next.js frontend (in another terminal, same folder)
 npm install
-npm run dev
+npm run dev     # serves UI on http://localhost:3000
 
-# Access the beautiful dashboard at:
-http://localhost:3000/dashboard
+# 4. Open the app
+http://localhost:3000
 ```
 📈 Example Risk Output
 	•	Critical: 138

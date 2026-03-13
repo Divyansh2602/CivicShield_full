@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CivicShield AI Dashboard</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Chart Data Labels -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+    <style>
+        body {
+            background-color: #0f172a;
+            color: white;
+        }
+
+        .card {
+            border-radius: 15px;
+            border: none;
+        }
+
+        .metric-card {
+            padding: 30px;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+
+        .metric-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+
+        .section-title {
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        table {
+            color: white;
+        }
+
+        .table-dark {
+            --bs-table-bg: #1e293b;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container mt-5">
+
+    <!-- Header -->
+    <div class="mb-5">
+        <h1>CivicShield AI Dashboard</h1>
+        <p class="text-secondary">Security Intelligence Overview</p>
+    </div>
+
+    <!-- Cyber Risk Score -->
+    <div class="card bg-dark p-4 mb-5 text-center">
+
+        <h4 class="mb-3">Cyber Risk Score</h4>
+
+        <div class="display-3 fw-bold text-{{ risk_color }}">
+            {{ risk_score }} / 100
+        </div>
+
+        <div class="mb-3">
+            <span class="badge bg-{{ risk_color }} fs-6">
+                {{ risk_label }}
+            </span>
+        </div>
+
+        <div class="progress" style="height: 25px;">
+            <div class="progress-bar bg-{{ risk_color }}"
+                role="progressbar"
+                style="width: {{ risk_score }}%;"
+                aria-valuenow="{{ risk_score }}"
+                aria-valuemin="0"
+                aria-valuemax="100">
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Top Metrics -->
+    <div class="row mb-5">
+
+        <div class="col-md-6">
+            <div class="card bg-primary metric-card">
+                <div>Total Scans</div>
+                <div class="metric-number">{{ total_scans }}</div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card bg-danger metric-card">
+                <div>Total Vulnerabilities</div>
+                <div class="metric-number">{{ total_vulns }}</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Risk Distribution Pie -->
+    <div class="card bg-dark p-4 mb-5">
+        <h4 class="section-title">Risk Distribution</h4>
+        <div style="height:400px;">
+            <canvas id="riskChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Risk Breakdown Cards -->
+    <div class="row mb-5">
+
+        <div class="col-md-4">
+            <div class="card" style="background-color:#8B0000;">
+                <div class="metric-card">
+                    <div>Critical Risk</div>
+                    <div class="metric-number">{{ critical_risk }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-danger metric-card">
+                <div>High Risk</div>
+                <div class="metric-number">{{ high_risk }}</div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-warning text-dark metric-card">
+                <div>Medium Risk</div>
+                <div class="metric-number">{{ medium_risk }}</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scan Trend -->
+    <div class="card bg-dark p-4 mb-5">
+        <h4 class="section-title">Scan Trend</h4>
+        <div style="height:300px;">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Latest Vulnerabilities -->
+    <div class="card bg-dark p-4 mb-5">
+        <h4 class="section-title">Latest Vulnerabilities</h4>
+
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Risk</th>
+                        <th>Type</th>
+                        <th>URL</th>
+                        <th>Parameter</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vuln in vuln_list %}
+                    <tr>
+                        <td>
+                            {% if vuln.risk|lower == 'critical' %}
+                                <span class="badge bg-danger">CRITICAL</span>
+                            {% elif vuln.risk|lower == 'high' %}
+                                <span class="badge bg-danger">HIGH</span>
+                            {% elif vuln.risk|lower == 'medium' %}
+                                <span class="badge bg-warning text-dark">MEDIUM</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ vuln.risk }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ vuln.type }}</td>
+                        <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis;">
+                            {{ vuln.url }}
+                        </td>
+                        <td>{{ vuln.param }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="text-center text-secondary mt-5">
+        CivicShield AI © 2026
+    </div>
+
+</div>
+
+<!-- Charts -->
+<script>
+Chart.register(ChartDataLabels);
+
+// -------- PIE CHART --------
+const riskStats = {{ [critical_risk, high_risk, medium_risk] | tojson | safe }};
+
+new Chart(document.getElementById('riskChart'), {
+    type: 'pie',
+    data: {
+        labels: ['Critical', 'High', 'Medium'],
+        datasets: [{
+            data: riskStats,
+            backgroundColor: ['#8B0000', '#ff4d4d', '#ffc107']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            datalabels: {
+                color: '#fff',
+                formatter: (value, ctx) => {
+                    let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                    if(sum === 0) return "0%";
+                    return ((value * 100) / sum).toFixed(1) + "%";
+                }
+            }
+        }
+    }
+});
+
+// -------- TREND CHART --------
+const trendLabels = {{ trend_labels | tojson | safe }};
+const trendCounts = {{ trend_counts | tojson | safe }};
+
+new Chart(document.getElementById('trendChart'), {
+    type: 'bar',
+    data: {
+        labels: trendLabels,
+        datasets: [{
+            label: 'Scans Per Day',
+            data: trendCounts,
+            backgroundColor: 'rgba(59,130,246,0.5)',
+            borderColor: '#3b82f6',
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+
+// -------- AUTO REFRESH --------
+setTimeout(() => {
+    location.reload();
+}, 10000);
+
+</script>
+
+</body>
+</html>

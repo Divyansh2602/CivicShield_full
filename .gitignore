@@ -1,0 +1,17 @@
+# Pentest reports
+report.html
+pentest_report.pdf
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+node_modules/
+.env
+.next/
+dist/
+build/

@@ -1,5 +1,9 @@
 import sys
 import os
+
+# Add the backend directory to sys.path so absolute imports work from anywhere
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from datetime import datetime
 from database.db import SessionLocal
 from database.models import Scan, Vulnerability

@@ -13,6 +13,10 @@ import os
 import threading
 from sqlalchemy import func
 import uvicorn
+import sys
+
+# Add the backend directory to sys.path so absolute imports work from anywhere
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from analyzer.phishing_detector import PhishingDetector
 from analyzer.engine import run_scan

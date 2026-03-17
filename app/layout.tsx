@@ -15,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-background text-foreground">
+      <body className="text-foreground">
         {children}
         <Toaster
           position="bottom-right"

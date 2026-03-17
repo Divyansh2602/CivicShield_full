@@ -194,7 +194,7 @@ function ActivityLogsContent() {
 
 export default function ActivityLogs() {
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-transparent text-foreground">
       <SidebarNav />
       <Suspense fallback={<div className="flex-1" />}>
         <ActivityLogsContent />

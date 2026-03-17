@@ -1,274 +1,272 @@
-🚀 CivicShield AI
+<div align="center">
 
-AI-Powered Cyber Resilience Platform
+<!-- HERO BANNER -->
+<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=00f5a0&height=200&section=header&text=CivicShield%20AI&fontSize=72&fontColor=0b0f19&fontAlignY=38&desc=Enterprise%20AI%20Cybersecurity%20Intelligence%20Platform&descAlignY=58&descSize=20&descColor=0b0f19" />
 
-⸻
+<br/>
 
-🔥 Overview
+<!-- BADGES -->
+<img src="https://img.shields.io/badge/Version-0.1.0-00f5a0?style=for-the-badge&labelColor=0b0f19" />
+<img src="https://img.shields.io/badge/Next.js-14.2-ffffff?style=for-the-badge&logo=next.js&logoColor=white&labelColor=0b0f19" />
+<img src="https://img.shields.io/badge/FastAPI-Python-00f5a0?style=for-the-badge&logo=fastapi&logoColor=white&labelColor=0b0f19" />
+<img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white&labelColor=0b0f19" />
+<img src="https://img.shields.io/badge/Tailwind_CSS-3.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white&labelColor=0b0f19" />
+<img src="https://img.shields.io/badge/Framer_Motion-Animated-ff0055?style=for-the-badge&logo=framer&logoColor=white&labelColor=0b0f19" />
 
-CivicShield AI is an intelligent cyber security platform designed to:
-	•	🔍 Detect vulnerabilities (SQLi, XSS, Injection flaws)
-	•	🎯 Perform attack surface analysis
-	•	🛡️ Detect phishing threats
-	•	📊 Calculate real-time Cyber Risk Score
-	•	📈 Provide executive security dashboard
-	•	📄 Generate professional PDF pentest reports
-	•	🔐 Secure APIs with JWT authentication
+<br/><br/>
 
-It transforms raw scan data into actionable intelligence.
+> ### 🛡️ Real-time threat detection · AI-powered vulnerability scanning · Phishing protection · Live global threat globe
+>
+> *Built for hackathon — designed for production.*
 
-⸻
+<br/>
 
-🧠 Why CivicShield AI?
+[🚀 **Live Demo**](https://v0-civic-shield-ai-frontend.vercel.app/) &nbsp;·&nbsp; [📖 **Quick Start**](#-quick-start) &nbsp;·&nbsp; [🧩 **Features**](#-feature-modules) &nbsp;·&nbsp; [🛠️ **Tech Stack**](#️-tech-stack) &nbsp;·&nbsp; [📸 **Screenshots**](#-screenshots)
 
-Traditional scanners dump findings.
+</div>
 
-CivicShield AI:
-	•	Prioritizes risk
-	•	Quantifies impact
-	•	Visualizes threat trends
-	•	Converts technical findings into executive insights
+---
 
-Built for modern cyber defense.
+## 🧠 What is CivicShield AI?
 
-⸻
-```
-🏗️ System Architecture
-flowchart TD
+**CivicShield AI** is an AI-powered cybersecurity intelligence platform that gives teams a single command center to **scan**, **monitor**, and **respond** to threats.
 
-User -->|Login/Register| AuthAPI
-User -->|Start Scan| ScanAPI
-User -->|Phishing Check| PhishingAPI
-User -->|View Dashboard| Dashboard
+This repo is a **Next.js 14 (App Router) frontend** with a modern cyber design system (glassmorphism, grid background, live animations) and **API proxy routes** that connect to a **Python FastAPI backend** for scanning, phishing checks, and PDF report generation.
 
-ScanAPI --> ScanEngine
-PhishingAPI --> PhishingDetector
+In short: **what’s vulnerable, what’s happening, and what to fix first** — in one place.
 
-ScanEngine --> Database
-PhishingDetector --> Database
+---
 
-Database --> Dashboard
-Database --> ReportGenerator
+## 🏆 Hackathon Highlights
 
-ReportGenerator --> PDFReport
-```
-```
-🧩 Internal Architecture
+- **One-click “scan → dashboard” flow**: paste a URL on the landing page, start a scan, and get routed straight into a live dashboard.
+- **Real-time experience**: scan status updates via SWR polling (near real-time UX without websockets).
+- **Executive + technical views**: risk score KPIs for leadership, evidence/payload details for engineers.
+- **High-signal visualizations**: threat globe + charts + network graph for fast situational awareness.
+- **Production-minded frontend**: clean component structure, theme system, and responsive layout.
 
-flowchart LR
+---
 
-subgraph Backend
-    A[FastAPI App]
-    B[Auth Module]
-    C[Scan Engine]
-    D[Phishing Detector]
-    E[Risk Engine]
-    F[PDF Generator]
-end
+## 🎬 Demo Flow (2 minutes)
 
-subgraph Database
-    G[(Scan Table)]
-    H[(Vulnerability Table)]
-    I[(User Table)]
-end
+1. **Landing** → enter a target URL and click **Get Started**
+2. **Dashboard** → watch **risk score**, metrics, and charts update as results arrive
+3. **Threat Globe** → hover points to see simulated live activity + attack paths
+4. **Reports** → download a PDF report (via backend)
+5. **Surface / Phishing / API Security** → explore additional modules
 
-A --> B
-A --> C
-A --> D
-C --> G
-C --> H
-D --> H
-A --> E
-E --> H
-A --> F
-F --> H
-```
-![WhatsApp Image 2026-02-28 at 12 41 26](https://github.com/user-attachments/assets/d6869d39-ee2f-4572-a371-089626649cf5)
+---
 
+## 📸 Screenshots
 
-📊 Dashboard Intelligence Flow
+Add images to `screenshots/` and update these paths:
 
-sequenceDiagram
-    participant User
-    participant FastAPI
-    participant Database
-    participant RiskEngine
-    participant ChartJS
+- **Landing + Scan Starter**
 
-    User->>FastAPI: GET /dashboard
-    FastAPI->>Database: Fetch scan + vuln data
-    Database-->>FastAPI: Data
-    FastAPI->>RiskEngine: Calculate risk score
-    RiskEngine-->>FastAPI: Score + Label
-    FastAPI-->>User: Render dashboard.html
-    User->>ChartJS: Render charts
+> The entry point. Paste a target URL, kick off a scan, and jump into the dashboard with a live `scanId`.
 
-<img width="2559" height="1152" alt="image" src="https://github.com/user-attachments/assets/f61b1d06-4143-4693-b836-c0d8214016dd" />
+![Landing](screenshots/landing.png)
 
+- **Dashboard + Threat Globe**
 
-⚙️ Tech Stack
+> Your command center. Risk score, threat feed, and a real-time 3D globe showing active signals and cross-border attack arcs.
 
-Layer
-Technology
-Backend
-FastAPI
-Database
-SQLAlchemy + SQLite
-Auth
-JWT + bcrypt
-Frontend Framework
-Next.js 14 + React 18
-Styling & UI
-Tailwind CSS + Glassmorphism UX
-Animations
-Framer Motion (3D Hover & Shimmer)
-Data Visualization
-Recharts + react-force-graph-2d
-Reporting
-Custom PDF Generator
-Security
-Custom Scan Engine
+![Dashboard](screenshots/dashboard.png)
 
+- **Phishing**
 
-🛡️ Core Features
+> Phishing detection module. Analyze suspicious content and review confidence/risk signals for rapid triage.
 
-✅ Automated Scan Engine
-	•	SQL Injection Detection
-	•	XSS Detection
-	•	Parameter Fuzzing
-	•	Endpoint Discovery
+![Phishing](screenshots/phishing.png)
 
-✅ Phishing Detection
-	•	URL heuristic analysis
-	•	Suspicious pattern detection
+- **Reports**
 
-✅ Risk Scoring Engine
+> Audit-ready reporting. Generate and download PDF reports through the backend pipeline.
 
-Weighted severity model:
+![Reports](screenshots/reports.png)
 
-Critical × 10
-High × 6
-Medium × 3
-Normalized to 0–100
+---
 
-✅ Executive Dashboard
-	•	Interactive Risk Dashboard & SVG Animations
-	•	Cyber Attack World Map (Framer Motion lasers)
-	•	AI Threat Insights Panel 
-	•	Live 7-day scan trends via Recharts
-	•	Dynamic Vulnerability Distribution
+## 🧩 Feature Modules
 
-<img width="1171" height="1033" alt="image" src="https://github.com/user-attachments/assets/02fd33bb-e7ca-4b27-b6ad-5ca0c3ef290d" />
-<img width="1086" height="771" alt="image" src="https://github.com/user-attachments/assets/bded3bb5-ec7a-474f-a5f6-436a8319425b" />
+<details>
+<summary><b>🌐 Dashboard — Cyber Risk Command Center</b></summary>
+<br/>
 
-✅ Startup-Level UI/UX
-	•	Premium Glassmorphism aesthetics with neon glowing CSS properties
-	•	Dynamic 3D Hover Lift effects
-	•	Pulsing Shimmer Skeleton Loaders
-	•	Sleek toast notifications (react-hot-toast)
-	•	Fully responsive mobile drawer sidebar
+- **Cyber Risk Score** — animated 0–100 gauge with severity-weighted scoring.
+- **AI Threat Insights** — Framer Motion-powered intelligence feed panel.
+- **Live Global Threat Globe** — interactive 3D globe with live points + animated attack arcs (`react-globe.gl`).
+- **Security Metrics** — hover-lift stat cards for key categories (SQLi / XSS / API).
+- **Trends & Distribution** — Recharts charts for trends + severity breakdown.
+- **Vulnerability Table** — expandable evidence/payload details.
 
-✅ PDF Report Generator
-	•	Target summary
-	•	Findings
-	•	Risk breakdown
-	•	Professional formatting
+</details>
 
-⸻
-```
-📂 Project Structure
+<details>
+<summary><b>🔍 Vulnerability Scanner</b></summary>
+<br/>
 
-attack_surface_analyzer/
-│
-├── main.py
-├── analyzer/
-│   ├── engine.py
-│   ├── phishing_detector.py
-│   └── pdf_report_generator.py
-│
-├── api/
-│   └── auth.py
-│
-├── database/
-│   ├── db.py
-│   └── models.py
-│
-├── templates/
-│   └── dashboard.html
-│
-├── static/
-│
-└── README.md
-```
-```
-🔐 API Endpoints
+- Target URL validation with immediate feedback
+- Real-time scan progress tracking (SWR polling)
+- Findings table with severity, evidence, and remediation context
 
-Method
-Endpoint
-Description
-GET
-/dashboard
-Security dashboard
-POST
-/register
-Create user
-POST
-/login
-JWT login
-POST
-/scan
-Start vulnerability scan
-POST
-/phishing/check
-Phishing detection
-GET
-/scans
-List scans
-GET
-/scan/status/{id}
-Scan status
-GET
-/scan/results/{id}
-Scan results
-GET
-/report/{id}
-Generate PDF report
-```
-🧪 How to Run (Local)
+</details>
+
+<details>
+<summary><b>📡 Attack Surface Analysis — Network Graph</b></summary>
+<br/>
+
+- Interactive network visualization via `react-force-graph-2d`
+- Asset inventory + risk indicators
+
+</details>
+
+<details>
+<summary><b>🎣 Phishing Detection</b></summary>
+<br/>
+
+- Threat score visualization
+- Confidence indicators + action tracking
+
+</details>
+
+<details>
+<summary><b>🔐 API Security Monitor</b></summary>
+<br/>
+
+- Endpoint status + monitoring UI
+- JWT verification indicators (UI layer)
+
+</details>
+
+<details>
+<summary><b>📄 Reports</b></summary>
+<br/>
+
+- PDF report download via Next.js API proxy route
+
+</details>
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Framework** | Next.js 14 + React 18 | App Router + API routes |
+| **Language** | TypeScript | Type-safe UI |
+| **Styling** | Tailwind CSS | Cyber theme + glassmorphism |
+| **Animations** | Framer Motion | Transitions, feed animations |
+| **Charts** | Recharts | Line/bar charts |
+| **Network Graph** | React Force Graph 2D | Attack surface visualization |
+| **Threat Globe** | `react-globe.gl` + `three` | 3D globe threat visualization |
+| **Data Fetching** | SWR | Polling + caching |
+| **Notifications** | React Hot Toast | Toast UX |
+| **Icons** | Lucide React | Icons |
+| **Backend** | Python FastAPI | Scanning + phishing + reports |
+
+---
+
+## ⚡ Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- Python 3.8+ (for the FastAPI backend)
+
+### 1. Install dependencies
+
 ```bash
-# 1. Clone repo
-git clone https://github.com/Divyansh2602/CivicShield_full.git
-cd CivicShield_full
-
-# 2. Python backend
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# Linux / macOS
-source .venv/bin/activate
-
-pip install -r requirements.txt
-python main.py  # runs FastAPI on http://localhost:8000
-
-# 3. Next.js frontend (in another terminal, same folder)
 npm install
-npm run dev     # serves UI on http://localhost:3000
-
-# 4. Open the app
-http://localhost:3000
 ```
-📈 Example Risk Output
-	•	Critical: 138
-	•	High: 378
-	•	Medium: 338
-	•	Risk Score: 50 / 100 (HIGH)
 
-Dynamic, normalized, realistic.
+### 2. Configure environment variables
 
-🧠 Future Enhancements
-	•	AI-powered exploit prediction
-	•	CVSS scoring integration
-	•	Real-time WebSocket updates
-	•	Role-based access control
-	•	Threat intelligence feeds
-	•	Multi-tenant deployment
+Create `.env.local`:
+
+```env
+BACKEND_URL=http://localhost:8000
+```
+
+### 3. Run the frontend
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+### 4. Backend (expected endpoints)
+
+This frontend expects a FastAPI backend at `BACKEND_URL` with:
+
+- `POST /scan`
+- `GET /scan/{scan_id}`
+- `GET /report/{scan_id}`
+- `POST /phishing/check`
+
+---
+
+## 🧪 Local Dev Tips
+
+- **Port in use**: stop old dev servers, then re-run `npm run dev`.
+- **Backend required**: dashboard data comes from the FastAPI service at `BACKEND_URL`.
+- **No backend?**: UI still loads, but scan actions will fail until `BACKEND_URL` is reachable.
+
+---
+
+## 🗂️ Project Structure
+
+```text
+app/
+├── api/                    # Next.js API routes (proxy to FastAPI)
+│   ├── scan/
+│   ├── phishing/
+│   └── report/
+├── dashboard/
+├── scanner/
+├── surface/
+├── phishing/
+├── api-security/
+├── reports/
+├── logs/
+├── settings/
+├── globals.css
+└── layout.tsx
+
+components/
+├── AIThreatInsights.tsx
+├── DashboardHeader.tsx
+├── MetricCard.tsx
+├── RiskGaugeCard.tsx
+├── SidebarNav.tsx
+├── SkeletonLoader.tsx
+├── VulnerabilityTable.tsx
+└── WorldMap.tsx
+```
+
+---
+
+## 🔌 API Routes (Frontend)
+
+| Route | Purpose |
+|---|---|
+| `POST /api/scan` | Start a scan |
+| `GET /api/scan/[scanId]` | Poll scan status + results |
+| `GET /api/report/[scanId]` | Download PDF report |
+| `POST /api/phishing` | Phishing check |
+
+---
+
+## 🔒 Security & Privacy Notes
+
+- This is a hackathon prototype: treat scanning targets responsibly and only test assets you own or have permission to assess.
+- Avoid committing secrets. Use `.env.local` for environment variables.
+
+---
+
+## 📄 License
+
+This project is licensed under **GNU GPL v3.0**. See `LICENSE`.
+
+<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=00f5a0&height=100&section=footer&fontColor=0b0f19" />

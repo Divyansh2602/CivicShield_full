@@ -1,219 +1,569 @@
-"use client"
+"use client";
 
-import React, { useMemo } from 'react'
-import { motion } from 'framer-motion'
-import { MapPin, ShieldAlert, AlertTriangle, AlertCircle } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { motion } from "framer-motion";
 
-// Simple SVG path data for a world map outline (Low-Resolution generic version)
-// Using an ultra-simplified SVG path to keep the file size minimal while maintaining the aesthetic
-const WORLD_MAP_PATH = "M 103 40 C 97 32, 92 63, 137 60 C 182 57, 182 25, 230 20 C 278 15, 240 79, 274 74 C 308 69, 279 84, 303 103 C 327 122, 340 181, 319 220 C 298 259, 237 289, 219 270 C 201 251, 163 214, 137 200 C 111 186, 126 122, 103 100 C 80 78, 93 118, 59 133 C 25 148, 20 200, 39 230 C 58 260, 114 270, 77 301 C 40 332, 40 270, 19 260 C -2 250, -13 221, -2 201 C 9 181, -4 148, 17 122 C 38 96, 60 70, 103 40 Z"
+const Globe = dynamic(() => import("react-globe.gl"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+      Initializing global cyber threat map...
+    </div>
+  ),
+});
 
-// Base coordinate system mapping relative to the SVG viewbox (0,0 to 800,400)
-const LOCATIONS: Record<string, { x: number, y: number, name: string }> = {
-    "USA": { x: 180, y: 150, name: "United States" },
-    "China": { x: 620, y: 170, name: "China" },
-    "Russia": { x: 550, y: 100, name: "Russia" },
-    "India": { x: 580, y: 210, name: "India" },
-    "Germany": { x: 420, y: 130, name: "Germany" },
-    "UK": { x: 390, y: 120, name: "United Kingdom" },
-    "Brazil": { x: 260, y: 280, name: "Brazil" },
-    "Australia": { x: 680, y: 320, name: "Australia" },
+type ThreatSeverity = "low" | "medium" | "high" | "critical";
+
+type AttackType = "DDoS" | "Malware" | "Phishing" | "Ransomware";
+
+interface ThreatEvent {
+  id: string;
+  country: string;
+  city: string;
+  lat: number;
+  lng: number;
+  severity: ThreatSeverity;
+  attackType: AttackType;
+  timestamp: string;
 }
 
-const ATTACKS = [
-    { from: "Russia", to: "India", type: "CRITICAL" },
-    { from: "China", to: "USA", type: "HIGH" },
-    { from: "Germany", to: "UK", type: "MEDIUM" },
-    { from: "Brazil", to: "USA", type: "MEDIUM" },
-    { from: "Russia", to: "Germany", type: "HIGH" },
-]
+interface ArcEvent {
+  id: string;
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+  severity: ThreatSeverity;
+}
 
-export default function CyberAttackMap() {
-    // Generate SVG arcs for each attack
-    const attackArcs = useMemo(() => {
-        return ATTACKS.map((attack, i) => {
-            const source = LOCATIONS[attack.from]
-            const target = LOCATIONS[attack.to]
+const SEVERITY_COLORS: Record<ThreatSeverity, string> = {
+  low: "#22c55e",
+  medium: "#eab308",
+  high: "#f97316",
+  critical: "#ef4444",
+};
 
-            // Calculate a slight curve for the attack path
-            const midX = (source.x + target.x) / 2
-            const midY = (source.y + target.y) / 2 - 50 // Curve upwards
+const THREAT_LEVEL_COLORS = {
+  low: "#22c55e",
+  medium: "#facc15",
+  high: "#f97316",
+  critical: "#ef4444",
+  monitoring: "#3b82f6",
+};
 
-            const path = `M ${source.x} ${source.y} Q ${midX} ${midY} ${target.x} ${target.y}`
+const BASE_LOCATIONS = [
+  { country: "United States", city: "New York", lat: 40.7128, lng: -74.006 },
+  { country: "United Kingdom", city: "London", lat: 51.5074, lng: -0.1278 },
+  { country: "Germany", city: "Frankfurt", lat: 50.1109, lng: 8.6821 },
+  { country: "Russia", city: "Moscow", lat: 55.7558, lng: 37.6173 },
+  { country: "Japan", city: "Tokyo", lat: 35.6762, lng: 139.6503 },
+  { country: "India", city: "Mumbai", lat: 19.076, lng: 72.8777 },
+  { country: "Brazil", city: "São Paulo", lat: -23.5558, lng: -46.6396 },
+  { country: "Australia", city: "Sydney", lat: -33.8688, lng: 151.2093 },
+  { country: "South Africa", city: "Johannesburg", lat: -26.2041, lng: 28.0473 },
+  { country: "Singapore", city: "Singapore", lat: 1.3521, lng: 103.8198 },
+] as const;
 
-            let colorElement = "text-primary"
-            let strokeColor = "rgba(0, 245, 160, 0.6)"
+const ATTACK_TYPES: AttackType[] = ["DDoS", "Malware", "Phishing", "Ransomware"];
 
-            if (attack.type === "CRITICAL") {
-                colorElement = "text-critical"
-                strokeColor = "rgba(239, 68, 68, 0.8)"
-            } else if (attack.type === "HIGH") {
-                colorElement = "text-warning"
-                strokeColor = "rgba(245, 158, 11, 0.8)"
-            }
+const getRandomSeverity = (): ThreatSeverity => {
+  const roll = Math.random();
+  if (roll > 0.9) return "critical";
+  if (roll > 0.7) return "high";
+  if (roll > 0.4) return "medium";
+  return "low";
+};
 
-            return {
-                id: i,
-                ...attack,
-                source,
-                target,
-                path,
-                colorElement,
-                strokeColor
-            }
-        })
-    }, [])
+const formatTimeUTC = () =>
+  new Date().toISOString().split("T")[1]?.split(".")[0] + " UTC";
 
-    return (
-        <div className="glassmorphism rounded-lg p-6 mb-8 overflow-hidden relative">
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <div className="flex items-center gap-3 mb-1">
-                        <h2 className="text-xl font-bold">Global Cyber Threat Map</h2>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider">
-                            Simulation Mode
-                        </span>
-                    </div>
-                    <p className="text-sm text-foreground/60">Real-time visualization of active threat intelligence intercepts (Demonstrative UI)</p>
-                </div>
-                <div className="flex items-center gap-4 text-xs font-mono">
-                    <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-critical shadow-[0_0_8px_#ef4444]" />
-                        <span>Critical</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-warning shadow-[0_0_8px_#f59e0b]" />
-                        <span>High</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_#00f5a0]" />
-                        <span>Monitor</span>
-                    </div>
-                </div>
+const generateThreatEvent = (id: string): ThreatEvent => {
+  const base = BASE_LOCATIONS[Math.floor(Math.random() * BASE_LOCATIONS.length)];
+  const severity = getRandomSeverity();
+  const attackType = ATTACK_TYPES[Math.floor(Math.random() * ATTACK_TYPES.length)];
+
+  const jitterLat = (Math.random() - 0.5) * 2;
+  const jitterLng = (Math.random() - 0.5) * 2;
+
+  return {
+    id,
+    country: base.country,
+    city: base.city,
+    lat: base.lat + jitterLat,
+    lng: base.lng + jitterLng,
+    severity,
+    attackType,
+    timestamp: formatTimeUTC(),
+  };
+};
+
+const generateArc = (id: string, from: ThreatEvent, to: ThreatEvent): ArcEvent => ({
+  id,
+  startLat: from.lat,
+  startLng: from.lng,
+  endLat: to.lat,
+  endLng: to.lng,
+  severity: from.severity,
+});
+
+const computeGlobalThreatIndex = (events: ThreatEvent[]): number => {
+  if (!events.length) return 0;
+
+  const weights: Record<ThreatSeverity, number> = {
+    low: 0.25,
+    medium: 0.5,
+    high: 0.75,
+    critical: 1,
+  };
+
+  const total = events.reduce((sum, e) => sum + weights[e.severity], 0);
+  return Math.round((total / events.length) * 100);
+};
+
+export function ThreatMap() {
+  const globeRef = useRef<any>(null);
+
+  // Start with deterministic empty state for SSR; populate with
+  // random/simulated data only on the client after hydration.
+  const [threatEvents, setThreatEvents] = useState<ThreatEvent[]>([]);
+  const [arcEvents, setArcEvents] = useState<ArcEvent[]>([]);
+  const [activeThreat, setActiveThreat] = useState<ThreatEvent | null>(null);
+
+  // Generate initial simulated threats on the client only to avoid
+  // server/client markup mismatches from Math.random/Date usage.
+  useEffect(() => {
+    if (threatEvents.length) return;
+    const initial = Array.from({ length: 18 }).map((_, idx) =>
+      generateThreatEvent(String(idx + 1))
+    );
+    setThreatEvents(initial);
+  }, [threatEvents]);
+
+  useEffect(() => {
+    if (!globeRef.current || threatEvents.length < 3) return;
+
+    const globe = globeRef.current;
+    const camera = globe.camera?.() ?? globe.camera;
+
+    // Keep perspective clean while ensuring the full sphere fits in view.
+    if (camera) {
+      if (typeof camera.fov === "number") {
+        camera.fov = 60;
+      }
+      camera.lookAt(0, 0, 0);
+      camera.updateProjectionMatrix?.();
+    }
+
+    const controls = globe.controls?.() ?? globe.controls;
+    if (controls) {
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.6;
+    }
+
+    // Slightly shrink the globe mesh so it never clips the widget panel.
+    const globeMesh =
+      typeof globe.globeMesh === "function" ? globe.globeMesh() : globe.globeMesh;
+    if (globeMesh && globeMesh.scale?.set) {
+      globeMesh.scale.set(0.68, 0.68, 0.68);
+    }
+
+    // Higher altitude keeps the entire sphere visible across breakpoints,
+    // and lat/lng at 0 ensures the globe is visually centered.
+    if (typeof globe.pointOfView === "function") {
+      globe.pointOfView(
+        {
+          lat: 0,
+          lng: 0,
+          altitude: 3.8,
+        },
+        0
+      );
+    }
+
+    const initialArcs: ArcEvent[] = [];
+    for (let i = 0; i < 8; i++) {
+      const from = threatEvents[Math.floor(Math.random() * threatEvents.length)];
+      let to = threatEvents[Math.floor(Math.random() * threatEvents.length)];
+      if (to.id === from.id) {
+        to = threatEvents[(threatEvents.indexOf(from) + 1) % threatEvents.length];
+      }
+      initialArcs.push(generateArc(`arc-${i}`, from, to));
+    }
+    setArcEvents(initialArcs);
+  }, [threatEvents]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setThreatEvents((prev) => {
+        const next = [...prev];
+        if (next.length > 28) {
+          next.shift();
+        }
+        next.push(generateThreatEvent(String(Date.now())));
+        return next;
+      });
+
+      setArcEvents((prevArcs) => {
+        const next = [...prevArcs];
+        if (next.length > 24) {
+          next.shift();
+        }
+        if (threatEvents.length > 4) {
+          const from = threatEvents[Math.floor(Math.random() * threatEvents.length)];
+          let to = threatEvents[Math.floor(Math.random() * threatEvents.length)];
+          if (to.id === from.id) {
+            to = threatEvents[(threatEvents.indexOf(from) + 1) % threatEvents.length];
+          }
+          next.push(generateArc(`arc-${Date.now()}`, from, to));
+        }
+        return next;
+      });
+    }, 2200);
+
+    return () => clearInterval(interval);
+  }, [threatEvents]);
+
+  const globalThreatIndex = useMemo(
+    () => computeGlobalThreatIndex(threatEvents),
+    [threatEvents]
+  );
+
+  const recentFeed = useMemo(() => [...threatEvents].slice(-4).reverse(), [threatEvents]);
+
+  const severityCounts = useMemo(() => {
+    const base = { low: 0, medium: 0, high: 0, critical: 0 } as Record<
+      ThreatSeverity,
+      number
+    >;
+    return threatEvents.reduce((acc, e) => {
+      acc[e.severity] += 1;
+      return acc;
+    }, base);
+  }, [threatEvents]);
+
+  const totalSeverityEvents =
+    severityCounts.low + severityCounts.medium + severityCounts.high + severityCounts.critical || 1;
+
+  const severityPercentages = {
+    low: Math.round((severityCounts.low / totalSeverityEvents) * 100),
+    medium: Math.round((severityCounts.medium / totalSeverityEvents) * 100),
+    high: Math.round((severityCounts.high / totalSeverityEvents) * 100),
+    critical: Math.round((severityCounts.critical / totalSeverityEvents) * 100),
+  };
+
+  const monitoringCountries = ["United States", "United Kingdom", "Germany", "India", "Japan", "Australia"];
+
+  return (
+    <div className="relative w-full h-[520px] rounded-2xl border border-sky-500/30 bg-slate-900/40 backdrop-blur-xl shadow-[0_0_60px_rgba(15,23,42,0.9)] overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.28)_0,transparent_55%),radial-gradient(circle_at_bottom,rgba(15,23,42,0.95)_0,transparent_65%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0)_0,rgba(15,23,42,0.85)_70%,rgba(15,23,42,1)_100%)]" />
+
+      <div className="relative z-10 flex flex-col h-full">
+        <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-white/10">
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                Global Threat Index
+              </p>
+              <div className="flex items-end gap-2 mt-1">
+                <span className="text-3xl font-semibold text-slate-50">{globalThreatIndex}</span>
+                <span className="text-[11px] text-slate-400 mb-1">/ 100</span>
+              </div>
             </div>
-
-            <div className="w-full h-[400px] bg-[#0A0F1A] rounded-lg border border-primary/10 relative overflow-hidden flex items-center justify-center">
-                {/* Map Background grid */}
-                <div className="absolute inset-0 z-0 opacity-20 pointer-events-none"
-                    style={{ backgroundImage: 'linear-gradient(rgba(0, 245, 160, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 245, 160, 0.2) 1px, transparent 1px)', backgroundSize: '40px 40px' }}
-                />
-
-                <svg viewBox="0 0 800 400" className="w-full h-full z-10">
-                    <defs>
-                        <filter id="glow">
-                            <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
-                            <feMerge>
-                                <feMergeNode in="coloredBlur" />
-                                <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                        </filter>
-
-                        <linearGradient id="mapGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#1e293b" />
-                            <stop offset="100%" stopColor="#0f172a" />
-                        </linearGradient>
-                    </defs>
-
-                    {/* Abstract World Map Silhouette */}
-                    <path
-                        // Using a highly stylized, abstract tech-map SVG path (represented by simple rects/circles to simulate a dot matrix map if we don't have a giant real GeoJSON)
-                        d="M100 80h10v10h-10z M115 80h10v10h-10z M100 95h10v10h-10z M130 70h10v10h-10z M145 70h10v10h-10z M160 85h10v10h-10z M175 85h10v10h-10z M190 100h10v10h-10z M140 110h10v10h-10z M155 110h10v10h-10z M170 115h10v10h-10z M185 120h10v10h-10z M200 120h10v10h-10z M215 130h10v10h-10z M190 145h10v10h-10z M175 145h10v10h-10z M160 145h10v10h-10z M145 130h10v10h-10z M130 130h10v10h-10z M115 115h10v10h-10z M380 90h10v10h-10z M395 100h10v10h-10z M410 100h10v10h-10z M425 110h10v10h-10z M440 120h10v10h-10z M400 120h10v10h-10z M385 110h10v10h-10z M500 70h10v10h-10z M515 70h10v10h-10z M530 60h10v10h-10z M545 60h10v10h-10z M560 60h10v10h-10z M575 70h10v10h-10z M590 70h10v10h-10z M605 85h10v10h-10z M620 100h10v10h-10z M635 110h10v10h-10z M650 120h10v10h-10z M665 130h10v10h-10z M650 145h10v10h-10z M635 145h10v10h-10z M620 130h10v10h-10z M605 130h10v10h-10z M590 115h10v10h-10z M575 115h10v10h-10z M560 115h10v10h-10z M545 100h10v10h-10z M530 100h10v10h-10z M560 180h10v10h-10z M575 190h10v10h-10z M590 200h10v10h-10z M605 210h10v10h-10z M590 220h10v10h-10z M575 220h10v10h-10z M560 210h10v10h-10z M210 240h10v10h-10z M225 250h10v10h-10z M240 260h10v10h-10z M255 270h10v10h-10z M270 280h10v10h-10z M255 290h10v10h-10z M240 290h10v10h-10z M225 280h10v10h-10z M210 270h10v10h-10z M650 280h10v10h-10z M665 290h10v10h-10z M680 300h10v10h-10z M695 310h10v10h-10z M710 320h10v10h-10z M695 330h10v10h-10z M680 330h10v10h-10z M665 320h10v10h-10z M650 310h10v10h-10z"
-                        fill="rgba(30, 41, 59, 0.6)"
-                        stroke="rgba(51, 65, 85, 0.4)"
-                        strokeWidth="1"
-                    />
-
-                    {/* Locations and Pulses */}
-                    {Object.entries(LOCATIONS).map(([key, loc]) => (
-                        <g key={key}>
-                            <circle cx={loc.x} cy={loc.y} r="3" fill="#334155" />
-                            <text x={loc.x} y={loc.y + 15} fontSize="10" fill="#64748b" textAnchor="middle" className="font-mono">
-                                {key}
-                            </text>
-                        </g>
-                    ))}
-
-                    {/* Attack Arcs */}
-                    {attackArcs.map((arc) => (
-                        <g key={arc.id}>
-                            {/* Base faded line */}
-                            <path
-                                d={arc.path}
-                                fill="none"
-                                stroke={arc.strokeColor}
-                                strokeWidth="1"
-                                strokeOpacity="0.3"
-                            />
-
-                            {/* Glowing animated line */}
-                            <motion.path
-                                d={arc.path}
-                                fill="none"
-                                stroke={arc.strokeColor}
-                                strokeWidth="2"
-                                filter="url(#glow)"
-                                strokeDasharray="0 1"
-                                initial={{ pathLength: 0, opacity: 0 }}
-                                animate={{
-                                    pathLength: [0, 1, 1],
-                                    opacity: [0, 1, 0],
-                                }}
-                                transition={{
-                                    duration: 2.5,
-                                    repeat: Infinity,
-                                    ease: "easeInOut",
-                                    delay: arc.id * 0.8 // stagger animations
-                                }}
-                            />
-
-                            {/* Origin pulse */}
-                            <motion.circle
-                                cx={arc.source.x}
-                                cy={arc.source.y}
-                                r="4"
-                                fill={arc.strokeColor}
-                                filter="url(#glow)"
-                                animate={{ scale: [1, 2, 1], opacity: [0.8, 0, 0.8] }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
-                            />
-
-                            {/* Destination impact */}
-                            <motion.circle
-                                cx={arc.target.x}
-                                cy={arc.target.y}
-                                r="3"
-                                fill={arc.strokeColor}
-                                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
-                                transition={{
-                                    duration: 0.5,
-                                    repeat: Infinity,
-                                    delay: (arc.id * 0.8) + 1.2
-                                }}
-                            />
-                        </g>
-                    ))}
-                </svg>
-
-                {/* Live Event Log Overlay */}
-                <div className="absolute bottom-4 left-4 right-4 bg-background/80 backdrop-blur-md rounded border border-primary/20 p-3 flex items-center gap-4 overflow-hidden">
-                    <div className="flex items-center gap-2 text-primary whitespace-nowrap">
-                        <div className="w-2 h-2 rounded-full bg-critical animate-pulse" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Live Intercepts</span>
-                    </div>
-
-                    <div className="flex-1 overflow-hidden relative h-5">
-                        <motion.div
-                            className="absolute whitespace-nowrap text-xs font-mono text-foreground/80"
-                            animate={{ x: ["100%", "-100%"] }}
-                            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-                        >
-                            [DETECTED] High-velocity SQLi payload originating from Russia targeting DB-04 ...
-                            [ALERT] Brute force login spike originating from China against Auth Proxy ...
-                            [WARN] Suspicious internal scan activity detected from Germany subnet ...
-                        </motion.div>
-                    </div>
-                </div>
+            <div className="h-10 w-px bg-gradient-to-b from-transparent via-slate-700/80 to-transparent" />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400" />
+                </span>
+                <span className="text-[11px] font-semibold tracking-wide text-emerald-300">LIVE</span>
+              </div>
+              <p className="text-[11px] text-slate-400">Simulated real-time cyber activity stream</p>
             </div>
+          </div>
+
+          <div className="flex items-center gap-4 text-[11px] text-slate-300">
+            <div className="hidden md:flex items-center gap-3">
+              <span className="text-slate-400 uppercase tracking-[0.2em]">Risk Spectrum</span>
+              <span className="h-1.5 w-16 rounded-full bg-gradient-to-r from-emerald-400 via-yellow-400 to-red-500" />
+            </div>
+            <div className="hidden md:flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.low }} />
+                <span className="text-[11px] text-slate-400">Low</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.medium }} />
+                <span className="text-[11px] text-slate-400">Medium</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.high }} />
+                <span className="text-[11px] text-slate-400">High</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.critical }} />
+                <span className="text-[11px] text-slate-400">Severe</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.monitoring }} />
+                <span className="text-[11px] text-slate-400">Monitoring</span>
+              </div>
+            </div>
+          </div>
         </div>
-    )
+
+        <div className="flex-1 flex flex-col lg:flex-row">
+          <div className="relative flex-1 min-h-[260px] lg:min-h-0">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative flex items-center justify-center w-[520px] h-[520px]">
+                <Globe
+                  ref={globeRef}
+                  width={520}
+                  height={520}
+                  backgroundColor="rgba(0,0,0,0)"
+                  globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
+                  bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+                  showAtmosphere
+                  atmosphereAltitude={0.18}
+                  atmosphereColor="#38bdf8"
+                  pointsData={threatEvents}
+                  pointLat="lat"
+                  pointLng="lng"
+                  pointAltitude={0.15}
+                  pointRadius={0.6}
+                  pointColor={(d: any) => SEVERITY_COLORS[(d.severity ?? "low") as ThreatSeverity]}
+                  pointLabel={(d: any) =>
+                    [
+                      '<div style="padding:6px 8px;font-size:11px;line-height:1.45;">',
+                      '<div style="font-weight:600;color:#e5e7eb;margin-bottom:4px;">Threat Detected</div>',
+                      `<div style="color:#9ca3af;">Country: <span style="color:#e5e7eb;">${d.country}</span></div>`,
+                      `<div style="color:#9ca3af;">City: <span style="color:#e5e7eb;">${d.city}</span></div>`,
+                      `<div style="color:#9ca3af;">Latitude: <span style="color:#e5e7eb;">${d.lat?.toFixed?.(4)}</span></div>`,
+                      `<div style="color:#9ca3af;">Longitude: <span style="color:#e5e7eb;">${d.lng?.toFixed?.(4)}</span></div>`,
+                      `<div style="color:#9ca3af;">Attack Type: <span style="color:#e5e7eb;">${d.attackType}</span></div>`,
+                      `<div style="color:#9ca3af;">Time: <span style="color:#e5e7eb;">${d.timestamp}</span></div>`,
+                      "</div>",
+                    ].join("")
+                  }
+                  enablePointerInteraction
+                  animateIn
+                  arcsData={arcEvents}
+                  arcStartLat="startLat"
+                  arcStartLng="startLng"
+                  arcEndLat="endLat"
+                  arcEndLng="endLng"
+                  arcColor={(d: any) => [
+                    `${SEVERITY_COLORS[(d.severity ?? "low") as ThreatSeverity]}AA`,
+                    `${SEVERITY_COLORS[(d.severity ?? "low") as ThreatSeverity]}00`,
+                  ]}
+                  arcAltitude={0.22}
+                  arcDashLength={0.5}
+                  arcDashGap={0.3}
+                  arcDashAnimateTime={2000}
+                  arcStroke={0.7}
+                  pointsMerge
+                  onPointHover={(point: any) => setActiveThreat(point as ThreatEvent | null)}
+                  hexPolygonsData={[]}
+                />
+              </div>
+            </div>
+
+            <div className="pointer-events-none absolute left-6 bottom-6 bg-slate-950/80 border border-slate-700/60 rounded-xl px-3 py-2 text-[11px] text-slate-300 flex flex-col gap-1 backdrop-blur-md">
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
+                <span className="uppercase tracking-[0.18em] text-sky-300">Active threat paths</span>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Curved arcs represent cross-border attack routes detected in the last few seconds.
+              </p>
+            </div>
+
+            <div className="pointer-events-none absolute left-4 top-6 w-[160px] bg-slate-950/90 border border-slate-700/70 rounded-lg px-2.5 py-3 text-[10px] text-slate-300 space-y-1.5 backdrop-blur-md">
+              <p className="uppercase tracking-[0.25em] text-slate-400 text-[10px]">
+                Country threat posture
+              </p>
+              <div className="flex flex-col gap-1.5 text-[10px]">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.low }} />
+                    <span className="text-slate-300">Low</span>
+                  </div>
+                  <span className="text-slate-500 text-[9px]">Stable</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.medium }} />
+                    <span className="text-slate-300">Medium</span>
+                  </div>
+                  <span className="text-slate-500 text-[9px]">Elevated</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.high }} />
+                    <span className="text-slate-300">High</span>
+                  </div>
+                  <span className="text-slate-500 text-[9px]">Active</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.critical }} />
+                    <span className="text-slate-300">Severe</span>
+                  </div>
+                  <span className="text-slate-500 text-[9px]">Critical</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.monitoring }} />
+                    <span className="text-slate-300">Monitoring</span>
+                  </div>
+                  <span className="text-slate-500 text-[9px]">Watchlist</span>
+                </div>
+              </div>
+              <p className="text-[9px] text-slate-500 pt-1 border-t border-slate-800/80 mt-2">
+                Regions under blue-spectrum monitoring:{" "}
+                <span className="text-slate-300">{monitoringCountries.join(", ")}</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-white/10 bg-slate-950/80 backdrop-blur-md flex flex-col">
+            <div className="px-4 pt-3 pb-2 border-b border-white/10 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                  Recent threat feed
+                </p>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  Auto-refreshing stream of last intercepts
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[10px] text-emerald-300 font-medium">Live</span>
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  {threatEvents.length.toString().padStart(2, "0")} active signals
+                </p>
+              </div>
+            </div>
+
+            <div className="flex-1 px-3 py-2 space-y-2 overflow-hidden">
+              {recentFeed.map((event) => (
+                <motion.div
+                  key={event.id}
+                  className={`rounded-lg px-3 py-2.5 border text-[11px] cursor-default ${
+                    activeThreat?.id === event.id
+                      ? "border-sky-400/70 bg-sky-500/10"
+                      : "border-slate-700/70 bg-slate-900/60"
+                  }`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="h-1.5 w-6 rounded-full"
+                        style={{
+                          background: `linear-gradient(to right, ${SEVERITY_COLORS[event.severity]}, ${SEVERITY_COLORS[event.severity]}66)`,
+                        }}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-slate-100">{event.attackType} attack</p>
+                        <p className="truncate text-[10px] text-slate-400">
+                          {event.city}, {event.country}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span
+                        className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide"
+                        style={{
+                          backgroundColor: `${SEVERITY_COLORS[event.severity]}22`,
+                          color: SEVERITY_COLORS[event.severity],
+                        }}
+                      >
+                        {event.severity}
+                      </span>
+                      <span className="text-[9px] text-slate-500">{event.timestamp}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="px-4 pb-3 pt-2 border-t border-white/10">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                  Severity trend
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  Last {Math.min(threatEvents.length, 48)} events
+                </p>
+              </div>
+              <div className="h-2.5 rounded-full bg-slate-900/80 border border-slate-700/60 overflow-hidden flex">
+                <div
+                  className="h-full"
+                  style={{
+                    width: `${severityPercentages.low}%`,
+                    backgroundColor: `${THREAT_LEVEL_COLORS.low}55`,
+                  }}
+                />
+                <div
+                  className="h-full"
+                  style={{
+                    width: `${severityPercentages.medium}%`,
+                    backgroundColor: `${THREAT_LEVEL_COLORS.medium}66`,
+                  }}
+                />
+                <div
+                  className="h-full"
+                  style={{
+                    width: `${severityPercentages.high}%`,
+                    backgroundColor: `${THREAT_LEVEL_COLORS.high}88`,
+                  }}
+                />
+                <div
+                  className="h-full"
+                  style={{
+                    width: `${severityPercentages.critical}%`,
+                    backgroundColor: `${THREAT_LEVEL_COLORS.critical}aa`,
+                  }}
+                />
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.low }} />
+                    <span>Low {severityPercentages.low}%</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.medium }} />
+                    <span>Med {severityPercentages.medium}%</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.high }} />
+                    <span>High {severityPercentages.high}%</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: THREAT_LEVEL_COLORS.critical }} />
+                    <span>Crit {severityPercentages.critical}%</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Keep the existing default export name used by the dashboard import.
+export default function CyberAttackMap() {
+  return <ThreatMap />;
 }

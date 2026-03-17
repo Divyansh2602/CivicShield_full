@@ -159,7 +159,7 @@ function APISecurityContent() {
 
 export default function APISecurity() {
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-transparent text-foreground">
       <SidebarNav />
       <Suspense fallback={<div className="flex-1" />}>
         <APISecurityContent />

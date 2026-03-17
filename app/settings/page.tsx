@@ -10,7 +10,7 @@ export default function Settings() {
   const mockApiKey = "sk_test_51234567890abcdefghijklmnopqrst"
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-transparent text-foreground">
       <SidebarNav />
       <div className="flex-1 flex flex-col overflow-hidden">
         <DashboardHeader />
@@ -76,7 +76,7 @@ export default function Settings() {
                     </button>
                   </div>
                   <p className="text-xs text-foreground/50 mt-2">
-                    Keep your API key secure. Regenerate if you suspect it's been compromised.
+                    Keep your API key secure. Regenerate if you suspect it&apos;s been compromised.
                   </p>
                 </div>
                 <button className="px-4 py-2 border border-critical/30 text-critical rounded hover:bg-critical/10 transition">

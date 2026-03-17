@@ -47,7 +47,7 @@ export default function Scanner() {
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-transparent text-foreground">
       <SidebarNav />
       <div className="flex-1 flex flex-col overflow-hidden">
         <DashboardHeader />

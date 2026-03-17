@@ -187,6 +187,11 @@ Create `.env.local`:
 ```env
 BACKEND_URL=http://localhost:8000
 ```
+### 3. Run the backend
+
+```bash
+python main.py
+```
 
 ### 3. Run the frontend
 

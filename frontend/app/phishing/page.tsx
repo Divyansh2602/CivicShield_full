@@ -38,7 +38,7 @@ export default function PhishingDetection() {
   const detectionData = useMemo(() => {
     if (!result) return []
 
-    return [
+    const data = [
       { name: "Detected by ML", value: result.risk_level === "High" ? 1 : 0, color: "#00FA9A" },
       {
         name: "Suspicious Signals",
@@ -47,6 +47,12 @@ export default function PhishingDetection() {
       },
       { name: "Protocol Flags", value: result.features?.uses_ip ? 1 : 0, color: "#3B82F6" },
     ].filter((item) => item.value > 0)
+
+    if (data.length === 0) {
+      return [{ name: "Clean Signals", value: 1, color: "#64748b" }]
+    }
+
+    return data
   }, [result])
 
   const classificationData = useMemo(() => {

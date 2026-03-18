@@ -2,7 +2,7 @@
 
 import DashboardHeader from "@/components/DashboardHeader"
 import SidebarNav from "@/components/SidebarNav"
-import { Globe, Server, Lock, Zap } from "lucide-react"
+import { Globe, Server, Zap } from "lucide-react"
 
 import { Suspense, useMemo, useRef, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
@@ -24,9 +24,9 @@ function AttackSurfaceContent() {
     { refreshInterval: 2000 }
   )
 
-  const surfaceMap = scanData?.result?.surface_map || {}
-
   const nodes = useMemo(() => {
+    const surfaceMap = scanData?.result?.surface_map || {}
+
     return Object.entries(surfaceMap).map(([url, data]: any, i) => ({
       id: i + 1,
       label: url,
@@ -34,11 +34,11 @@ function AttackSurfaceContent() {
       risk: data.risk,
       risky: data.risk === "HIGH" || data.risk === "CRITICAL"
     }))
-  }, [surfaceMap])
+  }, [scanData?.result?.surface_map])
 
   const graphData = useMemo(() => {
-    const gNodes: any[] = [{ id: 0, name: scanData?.result?.target || "Target Node", val: 25, color: "#3b82f6" }];
-    const gLinks: any[] = [];
+    const gNodes: any[] = [{ id: 0, name: scanData?.result?.target || "Target Node", val: 25, color: "#3b82f6" }]
+    const gLinks: any[] = []
 
     nodes.forEach((node: any) => {
       gNodes.push({
@@ -46,24 +46,23 @@ function AttackSurfaceContent() {
         name: node.label,
         val: node.risky ? 15 : 10,
         color: node.risk === "CRITICAL" ? "#ef4444" : node.risk === "HIGH" ? "#f59e0b" : "#10b981"
-      });
+      })
       gLinks.push({
         source: 0,
         target: node.id,
         color: "rgba(255, 255, 255, 0.2)"
-      });
-    });
+      })
+    })
 
-    return { nodes: gNodes, links: gLinks };
-  }, [nodes, scanData]);
+    return { nodes: gNodes, links: gLinks }
+  }, [nodes, scanData?.result?.target])
 
   useEffect(() => {
     if (graphRef.current && nodes.length > 0) {
-      // Access underlying d3 simulation to push nodes further apart
-      graphRef.current.d3Force('charge').strength(-400); // Stronger repulsion entirely
-      graphRef.current.d3Force('link').distance(150);    // Make links much longer
+      graphRef.current.d3Force("charge").strength(-400)
+      graphRef.current.d3Force("link").distance(150)
     }
-  }, [graphData]);
+  }, [nodes.length])
 
   const assets = {
     domains: nodes.filter(n => n.type === "domain").length || 1,
@@ -87,7 +86,6 @@ function AttackSurfaceContent() {
             </div>
           ) : (
             <>
-              {/* Asset Summary */}
               <div className="grid md:grid-cols-3 gap-6 mb-8">
                 <div className="glassmorphism rounded-lg p-6">
                   <div className="flex items-center gap-3 mb-4">
@@ -117,7 +115,6 @@ function AttackSurfaceContent() {
                 </div>
               </div>
 
-              {/* Attack Surface Map */}
               <div className="glassmorphism rounded-lg p-6 mb-8">
                 <h2 className="text-xl font-bold mb-4">Attack Surface Map</h2>
                 <div className="w-full h-[500px] bg-[#0f172a] rounded-lg overflow-hidden border border-primary/20 relative">
@@ -137,37 +134,34 @@ function AttackSurfaceContent() {
                       warmupTicks={100}
                       onEngineTick={() => { }}
                       nodeCanvasObject={(node: any, ctx, globalScale) => {
-                        const label = node.name;
-                        const fontSize = node.id === 0 ? 14 / globalScale : 10 / globalScale;
-                        const r = node.val / 2;
+                        const label = node.name
+                        const fontSize = node.id === 0 ? 14 / globalScale : 10 / globalScale
+                        const r = node.val / 2
 
-                        // Glowing effect for risky nodes
                         if (node.color === "#ef4444" || node.color === "#f59e0b") {
-                          ctx.shadowBlur = 20;
-                          ctx.shadowColor = node.color;
+                          ctx.shadowBlur = 20
+                          ctx.shadowColor = node.color
                         } else {
-                          ctx.shadowBlur = 0;
+                          ctx.shadowBlur = 0
                         }
 
-                        ctx.beginPath();
-                        ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
-                        ctx.fillStyle = node.color;
-                        ctx.fill();
+                        ctx.beginPath()
+                        ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false)
+                        ctx.fillStyle = node.color
+                        ctx.fill()
 
-                        // Reset shadow for text
-                        ctx.shadowBlur = 0;
+                        ctx.shadowBlur = 0
 
-                        ctx.font = `${fontSize}px Inter, Sans-Serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
+                        ctx.font = `${fontSize}px Inter, Sans-Serif`
+                        ctx.textAlign = "center"
+                        ctx.textBaseline = "middle"
 
-                        // Draw black outline for text readability
-                        ctx.lineWidth = 2 / globalScale;
-                        ctx.strokeStyle = '#0f172a';
-                        ctx.strokeText(label, node.x, node.y + r + (12 / globalScale));
+                        ctx.lineWidth = 2 / globalScale
+                        ctx.strokeStyle = "#0f172a"
+                        ctx.strokeText(label, node.x, node.y + r + (12 / globalScale))
 
-                        ctx.fillStyle = node.id === 0 ? '#ffffff' : '#e2e8f0';
-                        ctx.fillText(label, node.x, node.y + r + (12 / globalScale));
+                        ctx.fillStyle = node.id === 0 ? "#ffffff" : "#e2e8f0"
+                        ctx.fillText(label, node.x, node.y + r + (12 / globalScale))
                       }}
                     />
                   ) : (
@@ -183,7 +177,6 @@ function AttackSurfaceContent() {
                 </p>
               </div>
 
-              {/* Discovered Assets */}
               <div className="glassmorphism rounded-lg p-6">
                 <h2 className="text-xl font-bold mb-4">Discovered Assets</h2>
                 <div className="overflow-x-auto">

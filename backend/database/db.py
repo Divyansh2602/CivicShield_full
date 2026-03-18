@@ -1,12 +1,22 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+import os
 
-DATABASE_URL = "sqlite:///./civicshield.db"
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+DEFAULT_SQLITE_URL = "sqlite:///./civicshield.db"
+raw_database_url = os.getenv("DATABASE_URL", DEFAULT_SQLITE_URL)
+DATABASE_URL = raw_database_url.replace("postgres://", "postgresql://", 1)
+
+engine_kwargs = {
+    "pool_pre_ping": True,
+}
+
+if DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs["pool_recycle"] = 300
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 SessionLocal = sessionmaker(
     autocommit=False,

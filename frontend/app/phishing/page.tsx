@@ -4,13 +4,51 @@ import { useState } from "react"
 
 import DashboardHeader from "@/components/DashboardHeader"
 import SidebarNav from "@/components/SidebarNav"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, CheckCircle, Shield } from "lucide-react"
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts'
 
 export default function PhishingDetection() {
   const [url, setUrl] = useState("")
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState("")
+
+  const [stats, setStats] = useState({
+    total: 0,
+    phishing: 0,
+    legitimate: 0,
+    suspicious: 0,
+    blocked: 0,
+    totalRiskScore: 0,
+    mlDetected: 0,
+    featureSuspicious: 0
+  })
+
+  const detectionData = [
+    { name: 'Detected by ML', value: stats.mlDetected, color: '#00FA9A' },
+    { name: 'Suspicious', value: stats.featureSuspicious, color: '#FFB800' },
+    { name: 'Blocked by Protocols', value: stats.blocked, color: '#3B82F6' }
+  ]
+
+  const classificationData = [
+    { name: 'Legitimate', value: stats.legitimate, fill: '#00FA9A' },
+    { name: 'Phishing', value: stats.phishing, fill: '#ef4444' },
+    { name: 'Suspicious', value: stats.suspicious, fill: '#f59e0b' }
+  ]
+
+  const averageRiskScore = stats.total > 0 ? ((stats.totalRiskScore / stats.total) / 10).toFixed(1) : "0.0"
+  const blockRate = stats.total > 0 ? "100.0%" : "0.0%"
 
   const handleScan = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,6 +79,27 @@ export default function PhishingDetection() {
       }
 
       setResult(data)
+
+      setStats(prev => {
+        const isPhishing = data.risk_level === "High"
+        const isSuspicious = data.risk_level === "Medium"
+        const isLegit = data.risk_level === "Low"
+
+        const blocked = data.features?.uses_ip ? 1 : 0
+        const mlDet = isPhishing ? 1 : 0
+        const featSusp = (!isPhishing && data.features?.suspicious_keywords > 0) || isSuspicious ? 1 : 0
+
+        return {
+          total: prev.total + 1,
+          phishing: prev.phishing + (isPhishing ? 1 : 0),
+          legitimate: prev.legitimate + (isLegit ? 1 : 0),
+          suspicious: prev.suspicious + (isSuspicious ? 1 : 0),
+          blocked: prev.blocked + blocked,
+          totalRiskScore: prev.totalRiskScore + data.phishing_probability_percent,
+          mlDetected: prev.mlDetected + mlDet,
+          featureSuspicious: prev.featureSuspicious + featSusp
+        }
+      })
     } catch (err: any) {
       setError(err.message || "An error occurred")
     } finally {
@@ -60,8 +119,88 @@ export default function PhishingDetection() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <DashboardHeader />
         <main className="flex-1 overflow-auto p-6 md:p-8">
-          <div className="max-w-4xl">
-            <h1 className="text-3xl font-bold mb-8">Phishing Detection</h1>
+          <div className="max-w-6xl mx-auto space-y-8">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-foreground">Phishing & Email Security</h1>
+              <p className="text-foreground/60 mt-2">Advanced email threat detection and phishing protection</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="glassmorphism rounded-lg p-6 flex flex-col justify-between border border-primary/10">
+                <div className="flex items-center gap-2 text-critical mb-4">
+                  <AlertTriangle className="w-5 h-5" />
+                  <span className="font-semibold text-sm">Phishing Attempts</span>
+                </div>
+                <div className="text-4xl font-bold text-critical">{stats.phishing}</div>
+              </div>
+
+              <div className="glassmorphism rounded-lg p-6 flex flex-col justify-between border border-primary/10">
+                <div className="flex items-center gap-2 text-success mb-4">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-semibold text-sm">Block Rate</span>
+                </div>
+                <div className="text-4xl font-bold text-success">{blockRate}</div>
+              </div>
+
+              <div className="glassmorphism rounded-lg p-6 flex flex-col justify-between border border-primary/10">
+                <div className="flex items-center gap-2 text-foreground/80 mb-4">
+                  <Shield className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-sm">Risk Score</span>
+                </div>
+                <div className="text-4xl font-bold text-foreground">{averageRiskScore}/10</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <div className="glassmorphism rounded-lg p-6 border border-primary/10">
+                <h3 className="text-lg font-bold mb-6 text-foreground">Detection Methods</h3>
+                <div className="h-[250px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={detectionData.filter(d => d.value > 0)}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={0}
+                        outerRadius={75}
+                        dataKey="value"
+                        label={({ name, value }: any) => `${name}: ${value}`}
+                      >
+                        {detectionData.filter(d => d.value > 0).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                        itemStyle={{ color: '#fff' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="glassmorphism rounded-lg p-6 border border-primary/10">
+                <h3 className="text-lg font-bold mb-6 text-foreground">Email Classification</h3>
+                <div className="h-[250px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={classificationData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                      <XAxis dataKey="name" stroke="currentColor" tick={{ fill: 'currentColor', opacity: 0.6, fontSize: '12px' }} axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} tickLine={false} />
+                      <YAxis stroke="currentColor" tick={{ fill: 'currentColor', opacity: 0.6, fontSize: '12px' }} axisLine={false} tickLine={false} tickFormatter={(val) => val === 0 ? '0' : val.toString()} />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                      />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        {classificationData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
 
             <form onSubmit={handleScan} className="space-y-6 mb-8">
               <div className="glassmorphism rounded-lg p-6">

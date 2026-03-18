@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 import DashboardHeader from "@/components/DashboardHeader"
 import SidebarNav from "@/components/SidebarNav"
@@ -31,31 +31,39 @@ export default function PhishingDetection() {
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState("")
 
-  const [stats, setStats] = useState({
-    total: 0,
-    phishing: 0,
-    legitimate: 0,
-    suspicious: 0,
-    blocked: 0,
-    totalRiskScore: 0,
-    mlDetected: 0,
-    featureSuspicious: 0,
-  })
+  const currentRiskScore = result ? (Number(result.phishing_probability_percent || 0) / 10).toFixed(1) : "0.0"
+  const currentClassification = result?.risk_level || "Low"
+  const protocolSignal = result?.features?.uses_ip ? "Elevated" : "Normal"
 
-  const detectionData = [
-    { name: "Detected by ML", value: stats.mlDetected, color: "#00FA9A" },
-    { name: "Suspicious", value: stats.featureSuspicious, color: "#FFB800" },
-    { name: "Blocked by Protocols", value: stats.blocked, color: "#3B82F6" },
-  ]
+  const detectionData = useMemo(() => {
+    if (!result) return []
 
-  const classificationData = [
-    { name: "Legitimate", value: stats.legitimate, fill: "#00FA9A" },
-    { name: "Phishing", value: stats.phishing, fill: "#ef4444" },
-    { name: "Suspicious", value: stats.suspicious, fill: "#f59e0b" },
-  ]
+    return [
+      { name: "Detected by ML", value: result.risk_level === "High" ? 1 : 0, color: "#00FA9A" },
+      {
+        name: "Suspicious Signals",
+        value: result.risk_level === "Medium" || (result.features?.suspicious_keywords || 0) > 0 ? 1 : 0,
+        color: "#FFB800",
+      },
+      { name: "Protocol Flags", value: result.features?.uses_ip ? 1 : 0, color: "#3B82F6" },
+    ].filter((item) => item.value > 0)
+  }, [result])
 
-  const averageRiskScore = stats.total > 0 ? ((stats.totalRiskScore / stats.total) / 10).toFixed(1) : "0.0"
-  const blockRate = stats.total > 0 ? "100.0%" : "0.0%"
+  const classificationData = useMemo(() => {
+    if (!result) {
+      return [
+        { name: "Legitimate", value: 0, fill: "#00FA9A" },
+        { name: "Phishing", value: 0, fill: "#ef4444" },
+        { name: "Suspicious", value: 0, fill: "#f59e0b" },
+      ]
+    }
+
+    return [
+      { name: "Legitimate", value: result.risk_level === "Low" ? 1 : 0, fill: "#00FA9A" },
+      { name: "Phishing", value: result.risk_level === "High" ? 1 : 0, fill: "#ef4444" },
+      { name: "Suspicious", value: result.risk_level === "Medium" ? 1 : 0, fill: "#f59e0b" },
+    ]
+  }, [result])
 
   const handleScan = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,25 +91,6 @@ export default function PhishingDetection() {
       }
 
       setResult(data)
-      setStats((prev) => {
-        const isPhishing = data.risk_level === "High"
-        const isSuspicious = data.risk_level === "Medium"
-        const isLegit = data.risk_level === "Low"
-        const blocked = data.features?.uses_ip ? 1 : 0
-        const mlDet = isPhishing ? 1 : 0
-        const featSusp = (!isPhishing && data.features?.suspicious_keywords > 0) || isSuspicious ? 1 : 0
-
-        return {
-          total: prev.total + 1,
-          phishing: prev.phishing + (isPhishing ? 1 : 0),
-          legitimate: prev.legitimate + (isLegit ? 1 : 0),
-          suspicious: prev.suspicious + (isSuspicious ? 1 : 0),
-          blocked: prev.blocked + blocked,
-          totalRiskScore: prev.totalRiskScore + data.phishing_probability_percent,
-          mlDetected: prev.mlDetected + mlDet,
-          featureSuspicious: prev.featureSuspicious + featSusp,
-        }
-      })
     } catch (err: any) {
       setError(err.message || "An error occurred")
     } finally {
@@ -131,17 +120,17 @@ export default function PhishingDetection() {
               <div className="glassmorphism rounded-lg p-6 flex flex-col justify-between border border-primary/10">
                 <div className="flex items-center gap-2 text-critical mb-4">
                   <AlertTriangle className="w-5 h-5" />
-                  <span className="font-semibold text-sm">Phishing Attempts</span>
+                  <span className="font-semibold text-sm">Current Classification</span>
                 </div>
-                <div className="text-4xl font-bold text-critical">{stats.phishing}</div>
+                <div className={`text-4xl font-bold ${getRiskColor(currentClassification)}`}>{currentClassification.toUpperCase()}</div>
               </div>
 
               <div className="glassmorphism rounded-lg p-6 flex flex-col justify-between border border-primary/10">
                 <div className="flex items-center gap-2 text-success mb-4">
                   <CheckCircle className="w-5 h-5" />
-                  <span className="font-semibold text-sm">Block Rate</span>
+                  <span className="font-semibold text-sm">Protocol Signal</span>
                 </div>
-                <div className="text-4xl font-bold text-success">{blockRate}</div>
+                <div className="text-4xl font-bold text-success">{protocolSignal}</div>
               </div>
 
               <div className="glassmorphism rounded-lg p-6 flex flex-col justify-between border border-primary/10">
@@ -149,7 +138,7 @@ export default function PhishingDetection() {
                   <Shield className="w-5 h-5 text-primary" />
                   <span className="font-semibold text-sm">Risk Score</span>
                 </div>
-                <div className="text-4xl font-bold text-foreground">{averageRiskScore}/10</div>
+                <div className="text-4xl font-bold text-foreground">{currentRiskScore}/10</div>
               </div>
             </div>
 
@@ -159,8 +148,8 @@ export default function PhishingDetection() {
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={detectionData.filter((d) => d.value > 0)} cx="50%" cy="50%" innerRadius={0} outerRadius={75} dataKey="value" label={({ name, value }: any) => `${name}: ${value}`}>
-                        {detectionData.filter((d) => d.value > 0).map((entry, index) => (
+                      <Pie data={detectionData} cx="50%" cy="50%" innerRadius={0} outerRadius={75} dataKey="value" label={({ name, value }: any) => `${name}: ${value}`}>
+                        {detectionData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
                         ))}
                       </Pie>

@@ -10,6 +10,17 @@ import useSWR from "swr"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
+type ActivityLog = {
+  id: number
+  sequence: string
+  type: string
+  severity: string
+  host: string
+  description: string
+  fullUrl: string
+  method: string
+}
+
 function ActivityLogsContent() {
   const searchParams = useSearchParams()
   const scanId = searchParams.get("scanId")
@@ -24,7 +35,7 @@ function ActivityLogsContent() {
   const [threatType, setThreatType] = useState("All Types")
   const [severityFilter, setSeverityFilter] = useState("All Severity")
 
-  const logs = useMemo(() => {
+  const logs = useMemo<ActivityLog[]>(() => {
     const findings = scanData?.result?.findings || []
     return findings.map((f: any, i: number) => {
       const severity = f.risk === "CRITICAL" ? "Critical" : f.risk === "HIGH" ? "High" : f.risk === "MEDIUM" ? "Medium" : "Low"
@@ -49,7 +60,7 @@ function ActivityLogsContent() {
   }, [scanData])
 
   const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
+    return logs.filter((log: ActivityLog) => {
       const matchSearch =
         searchTerm === "" ||
         log.host.toLowerCase().includes(searchTerm.toLowerCase()) ||

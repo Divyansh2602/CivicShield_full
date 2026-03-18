@@ -1,9 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from pathlib import Path
 import os
 
 
-DEFAULT_SQLITE_URL = "sqlite:///./civicshield.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_SQLITE_URL = f"sqlite:///{(BASE_DIR / 'civicshield.db').as_posix()}"
 raw_database_url = os.getenv("DATABASE_URL", DEFAULT_SQLITE_URL)
 DATABASE_URL = raw_database_url.replace("postgres://", "postgresql://", 1)
 

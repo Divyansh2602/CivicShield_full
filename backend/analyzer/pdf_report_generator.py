@@ -6,8 +6,7 @@ import datetime
 
 
 class PDFReportGenerator:
-    def generate(self, target, findings, summary=None):
-        filename = "pentest_report.pdf"
+    def generate(self, target, findings, summary=None, filename="pentest_report.pdf"):
         doc = SimpleDocTemplate(filename, pagesize=A4, leftMargin=32, rightMargin=32, topMargin=32, bottomMargin=32)
         styles = getSampleStyleSheet()
         story = []
@@ -92,4 +91,4 @@ class PDFReportGenerator:
                 story.append(Spacer(1, 10))
 
         doc.build(story)
-        print("[+] PDF report generated: pentest_report.pdf")
+        print(f"[+] PDF report generated: {filename}")

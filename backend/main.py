@@ -160,6 +160,51 @@ def update_scan_progress(scan_id: int, stage: str, percent: int, message: str, s
     }
 
 
+def build_scan_payload(db, db_scan):
+    vulns = db.query(Vulnerability).filter(Vulnerability.scan_id == db_scan.id).all()
+    findings = []
+    for v in vulns:
+        findings.append({
+            "risk": v.risk,
+            "vuln": v.vuln_type,
+            "url": v.url,
+            "param": v.param,
+            "payload": v.payload,
+            "evidence": v.evidence,
+            "method": "GET",
+            "signal": "Historical finding loaded from storage",
+            "remediation": "Review the affected endpoint and apply the recommended fix from the latest live assessment.",
+        })
+
+    severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    vuln_type_counts = {}
+    for finding in findings:
+        risk = str(finding.get("risk", "LOW")).lower()
+        severity_counts[risk] = severity_counts.get(risk, 0) + 1
+        vuln_type_counts[finding["vuln"]] = vuln_type_counts.get(finding["vuln"], 0) + 1
+
+    return {
+        "target": db_scan.target_url,
+        "findings": findings,
+        "summary": {
+            "confirmed_findings": len(findings),
+            "severity_counts": severity_counts,
+            "vulnerability_types": vuln_type_counts,
+            "pages_crawled": 0,
+            "html_endpoints": 0,
+            "js_endpoints": 0,
+            "total_endpoints": 0,
+            "urls_with_params": 0,
+            "parameters_discovered": 0,
+            "payloads_tested": 0,
+            "requests_made": 0,
+            "passive_findings": sum(1 for finding in findings if finding.get("payload") == "Passive analysis"),
+            "high_risk_surface": 0,
+            "medium_risk_surface": 0,
+        },
+    }
+
+
 def background_scan(scan_id: int, target: str):
     db = SessionLocal()
     try:
@@ -178,10 +223,6 @@ def background_scan(scan_id: int, target: str):
             ),
         )
 
-        if db_scan:
-            db_scan.status = "completed"
-            db.commit()
-
         for finding in result["findings"]:
             db.add(Vulnerability(
                 scan_id=db_scan.id,
@@ -193,14 +234,21 @@ def background_scan(scan_id: int, target: str):
                 evidence=finding.get("evidence"),
             ))
 
+        if db_scan:
+            db_scan.status = "completed"
         db.commit()
         scan_store[scan_id]["status"] = "completed"
         scan_store[scan_id]["result"] = result
         update_scan_progress(scan_id, "complete", 100, "Scan completed and results are ready", result.get("summary", {}))
     except Exception as e:
-        scan_store[scan_id]["status"] = "failed"
-        scan_store[scan_id]["error"] = str(e)
-        update_scan_progress(scan_id, "failed", 100, "Scan failed before completion")
+        if scan_id in scan_store:
+            scan_store[scan_id]["status"] = "failed"
+            scan_store[scan_id]["error"] = str(e)
+            update_scan_progress(scan_id, "failed", 100, "Scan failed before completion")
+        db_scan = db.query(Scan).filter(Scan.id == scan_id).first()
+        if db_scan:
+            db_scan.status = "failed"
+            db.commit()
     finally:
         db.close()
 
@@ -259,32 +307,7 @@ def scan_status(scan_id: int):
                 },
             }
             if db_scan.status == "completed":
-                vulns = db.query(Vulnerability).filter(Vulnerability.scan_id == scan_id).all()
-                findings = []
-                for v in vulns:
-                    findings.append({
-                        "risk": v.risk,
-                        "vuln": v.vuln_type,
-                        "url": v.url,
-                        "param": v.param,
-                        "payload": v.payload,
-                        "evidence": v.evidence,
-                    })
-                severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
-                vuln_type_counts = {}
-                for finding in findings:
-                    risk = str(finding.get("risk", "LOW")).lower()
-                    severity_counts[risk] = severity_counts.get(risk, 0) + 1
-                    vuln_type_counts[finding["vuln"]] = vuln_type_counts.get(finding["vuln"], 0) + 1
-                scan_data["result"] = {
-                    "target": db_scan.target_url,
-                    "findings": findings,
-                    "summary": {
-                        "confirmed_findings": len(findings),
-                        "severity_counts": severity_counts,
-                        "vulnerability_types": vuln_type_counts,
-                    },
-                }
+                scan_data["result"] = build_scan_payload(db, db_scan)
                 scan_store[scan_id] = scan_data
 
         response = {
@@ -302,20 +325,27 @@ def scan_status(scan_id: int):
 
 @app.get("/report/{scan_id}")
 def generate_report(scan_id: int):
-    if scan_id not in scan_store:
-        raise HTTPException(status_code=404, detail="Scan ID not found")
-    if scan_store[scan_id]["status"] != "completed":
-        raise HTTPException(status_code=400, detail="Scan not completed yet")
+    db = SessionLocal()
+    try:
+        if scan_id in scan_store and scan_store[scan_id].get("status") == "completed" and scan_store[scan_id].get("result"):
+            data = scan_store[scan_id]["result"]
+        else:
+            db_scan = db.query(Scan).filter(Scan.id == scan_id).first()
+            if not db_scan:
+                raise HTTPException(status_code=404, detail="Scan ID not found")
+            if db_scan.status != "completed":
+                raise HTTPException(status_code=400, detail="Scan not completed yet")
+            data = build_scan_payload(db, db_scan)
 
-    data = scan_store[scan_id]["result"]
-    report_filename = f"pentest_report_{scan_id}.pdf"
-    with report_lock:
-        PDFReportGenerator().generate(data["target"], data["findings"], data.get("summary"))
-        if not os.path.exists("pentest_report.pdf"):
-            raise HTTPException(status_code=500, detail="Report generation failed")
-        os.replace("pentest_report.pdf", report_filename)
+        report_filename = f"pentest_report_{scan_id}.pdf"
+        with report_lock:
+            PDFReportGenerator().generate(data["target"], data["findings"], data.get("summary"), filename=report_filename)
+            if not os.path.exists(report_filename):
+                raise HTTPException(status_code=500, detail="Report generation failed")
 
-    return FileResponse(path=report_filename, media_type="application/pdf", filename=f"report_{scan_id}.pdf")
+        return FileResponse(path=report_filename, media_type="application/pdf", filename=f"report_{scan_id}.pdf")
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import re
-import requests
 from urllib.parse import urljoin
+from utils.http_client import safe_get
 
 
 class JSEndpointExtractor:
@@ -8,6 +8,8 @@ class JSEndpointExtractor:
         self.base_url = base_url
         self.js_files = set()
         self.endpoints = set()
+        self.max_js_files = 12
+        self.max_js_size = 1_000_000
 
         self.patterns = [
             r'["\'](/api/[^"\']+)["\']',
@@ -21,13 +23,15 @@ class JSEndpointExtractor:
     def extract_js_files(self, html, page_url):
         matches = re.findall(r'<script[^>]+src=["\'](.*?)["\']', html)
         for src in matches:
+            if len(self.js_files) >= self.max_js_files:
+                break
             full_js_url = urljoin(page_url, src)
             self.js_files.add(full_js_url)
 
     def extract_endpoints_from_js(self, js_url):
         try:
-            response = requests.get(js_url, timeout=(2, 2))
-            content = response.text
+            response = safe_get(js_url, timeout=(3, 5))
+            content = response.text[: self.max_js_size]
         except Exception:
             return
 
@@ -42,17 +46,19 @@ class JSEndpointExtractor:
         ignore_exts = ('.pdf', '.doc', '.docx', '.xls', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.tar', '.gz')
 
         for page in pages:
+            if len(self.js_files) >= self.max_js_files:
+                break
             if any(page.lower().endswith(ext) for ext in ignore_exts):
                 continue
-                
+
             try:
-                html = requests.get(page, timeout=(2, 2)).text
+                html = safe_get(page, timeout=(3, 5)).text
             except Exception:
                 continue
 
             self.extract_js_files(html, page)
 
-        for js in self.js_files:
+        for js in list(self.js_files)[: self.max_js_files]:
             self.extract_endpoints_from_js(js)
 
         return self.endpoints

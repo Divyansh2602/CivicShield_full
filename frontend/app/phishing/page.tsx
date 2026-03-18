@@ -15,8 +15,15 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
-} from 'recharts'
+  ResponsiveContainer,
+} from "recharts"
+
+const SAMPLE_URLS = [
+  "https://openai.com/research",
+  "https://accounts.google.com/signin/v2/identifier",
+  "http://paypal.verify-account.top/webscr?auth=reset",
+  "http://198.51.100.24/secure-login?session=445566",
+]
 
 export default function PhishingDetection() {
   const [url, setUrl] = useState("")
@@ -32,19 +39,19 @@ export default function PhishingDetection() {
     blocked: 0,
     totalRiskScore: 0,
     mlDetected: 0,
-    featureSuspicious: 0
+    featureSuspicious: 0,
   })
 
   const detectionData = [
-    { name: 'Detected by ML', value: stats.mlDetected, color: '#00FA9A' },
-    { name: 'Suspicious', value: stats.featureSuspicious, color: '#FFB800' },
-    { name: 'Blocked by Protocols', value: stats.blocked, color: '#3B82F6' }
+    { name: "Detected by ML", value: stats.mlDetected, color: "#00FA9A" },
+    { name: "Suspicious", value: stats.featureSuspicious, color: "#FFB800" },
+    { name: "Blocked by Protocols", value: stats.blocked, color: "#3B82F6" },
   ]
 
   const classificationData = [
-    { name: 'Legitimate', value: stats.legitimate, fill: '#00FA9A' },
-    { name: 'Phishing', value: stats.phishing, fill: '#ef4444' },
-    { name: 'Suspicious', value: stats.suspicious, fill: '#f59e0b' }
+    { name: "Legitimate", value: stats.legitimate, fill: "#00FA9A" },
+    { name: "Phishing", value: stats.phishing, fill: "#ef4444" },
+    { name: "Suspicious", value: stats.suspicious, fill: "#f59e0b" },
   ]
 
   const averageRiskScore = stats.total > 0 ? ((stats.totalRiskScore / stats.total) / 10).toFixed(1) : "0.0"
@@ -66,25 +73,20 @@ export default function PhishingDetection() {
       const fullUrl = url.startsWith("http") ? url : `https://${url}`
       const response = await fetch("/api/phishing", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: fullUrl }),
       })
 
       const data = await response.json()
-
       if (!response.ok) {
         throw new Error(data.detail || "Failed to analyze URL")
       }
 
       setResult(data)
-
-      setStats(prev => {
+      setStats((prev) => {
         const isPhishing = data.risk_level === "High"
         const isSuspicious = data.risk_level === "Medium"
         const isLegit = data.risk_level === "Low"
-
         const blocked = data.features?.uses_ip ? 1 : 0
         const mlDet = isPhishing ? 1 : 0
         const featSusp = (!isPhishing && data.features?.suspicious_keywords > 0) || isSuspicious ? 1 : 0
@@ -97,7 +99,7 @@ export default function PhishingDetection() {
           blocked: prev.blocked + blocked,
           totalRiskScore: prev.totalRiskScore + data.phishing_probability_percent,
           mlDetected: prev.mlDetected + mlDet,
-          featureSuspicious: prev.featureSuspicious + featSusp
+          featureSuspicious: prev.featureSuspicious + featSusp,
         }
       })
     } catch (err: any) {
@@ -122,7 +124,7 @@ export default function PhishingDetection() {
           <div className="max-w-6xl mx-auto space-y-8">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-foreground">Phishing & Email Security</h1>
-              <p className="text-foreground/60 mt-2">Advanced email threat detection and phishing protection</p>
+              <p className="text-foreground/60 mt-2">URL phishing classification with calibrated probabilities, lexical feature analysis, and explainable risk flags.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -157,40 +159,26 @@ export default function PhishingDetection() {
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={detectionData.filter(d => d.value > 0)}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={0}
-                        outerRadius={75}
-                        dataKey="value"
-                        label={({ name, value }: any) => `${name}: ${value}`}
-                      >
-                        {detectionData.filter(d => d.value > 0).map((entry, index) => (
+                      <Pie data={detectionData.filter((d) => d.value > 0)} cx="50%" cy="50%" innerRadius={0} outerRadius={75} dataKey="value" label={({ name, value }: any) => `${name}: ${value}`}>
+                        {detectionData.filter((d) => d.value > 0).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
                         ))}
                       </Pie>
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                        itemStyle={{ color: '#fff' }}
-                      />
+                      <Tooltip contentStyle={{ backgroundColor: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }} itemStyle={{ color: "#fff" }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
               <div className="glassmorphism rounded-lg p-6 border border-primary/10">
-                <h3 className="text-lg font-bold mb-6 text-foreground">Email Classification</h3>
+                <h3 className="text-lg font-bold mb-6 text-foreground">Classification Summary</h3>
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={classificationData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                      <XAxis dataKey="name" stroke="currentColor" tick={{ fill: 'currentColor', opacity: 0.6, fontSize: '12px' }} axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} tickLine={false} />
-                      <YAxis stroke="currentColor" tick={{ fill: 'currentColor', opacity: 0.6, fontSize: '12px' }} axisLine={false} tickLine={false} tickFormatter={(val) => val === 0 ? '0' : val.toString()} />
-                      <Tooltip
-                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
-                      />
+                      <XAxis dataKey="name" stroke="currentColor" tick={{ fill: "currentColor", opacity: 0.6, fontSize: "12px" }} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} tickLine={false} />
+                      <YAxis stroke="currentColor" tick={{ fill: "currentColor", opacity: 0.6, fontSize: "12px" }} axisLine={false} tickLine={false} tickFormatter={(val) => (val === 0 ? "0" : val.toString())} />
+                      <Tooltip cursor={{ fill: "rgba(255,255,255,0.05)" }} contentStyle={{ backgroundColor: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff" }} />
                       <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                         {classificationData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -203,32 +191,31 @@ export default function PhishingDetection() {
             </div>
 
             <form onSubmit={handleScan} className="space-y-6 mb-8">
-              <div className="glassmorphism rounded-lg p-6">
-                <label htmlFor="phishing-url" className="block text-lg font-bold mb-3">
-                  Check URL for Phishing
-                </label>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <input
-                    id="phishing-url"
-                    type="text"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://example.com"
-                    className="w-full px-4 py-3 bg-card border border-primary/20 rounded-lg text-foreground placeholder-foreground/40 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  />
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-6 py-3 bg-primary text-background font-bold rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap"
-                  >
-                    {loading ? "Analyzing..." : "Analyze URL"}
-                  </button>
+              <div className="glassmorphism rounded-lg p-6 space-y-5">
+                <div>
+                  <label htmlFor="phishing-url" className="block text-lg font-bold mb-3">Check URL for Phishing</label>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <input id="phishing-url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" className="w-full px-4 py-3 bg-card border border-primary/20 rounded-lg text-foreground placeholder-foreground/40 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20" />
+                    <button type="submit" disabled={loading} className="px-6 py-3 bg-primary text-background font-bold rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap">
+                      {loading ? "Analyzing..." : "Analyze URL"}
+                    </button>
+                  </div>
+                  <p className="text-sm text-foreground/60 mt-2">The model combines character-level TF-IDF with lexical URL features and calibrated logistic regression.</p>
                 </div>
-                <p className="text-sm text-foreground/60 mt-2">
-                  Enter a suspicious URL to analyze it using our AI phishing detection model.
-                </p>
+
+                <div>
+                  <p className="text-sm font-semibold text-foreground/60 mb-3">Quick Demo Samples</p>
+                  <div className="flex flex-wrap gap-2">
+                    {SAMPLE_URLS.map((sample) => (
+                      <button key={sample} type="button" onClick={() => setUrl(sample)} className="text-left px-3 py-2 rounded border border-primary/10 bg-card/50 hover:bg-primary/10 text-xs font-mono text-foreground/80 transition">
+                        {sample}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {error && (
-                  <div className="mt-4 p-3 border border-critical/30 rounded text-critical text-sm bg-critical/5 flex items-center gap-2">
+                  <div className="p-3 border border-critical/30 rounded text-critical text-sm bg-critical/5 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4" />
                     {error}
                   </div>
@@ -244,51 +231,54 @@ export default function PhishingDetection() {
                   <div className="space-y-6">
                     <div>
                       <div className="text-sm font-semibold text-foreground/60 mb-1">Target URL</div>
-                      <div className="font-mono text-sm break-all bg-card/50 p-3 rounded border border-primary/10">
-                        {result.url}
-                      </div>
+                      <div className="font-mono text-sm break-all bg-card/50 p-3 rounded border border-primary/10">{result.url}</div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-card/50 p-4 rounded border border-primary/10">
                         <div className="text-sm font-semibold text-foreground/60 mb-2">Risk Level</div>
-                        <div className={`text-2xl font-bold ${getRiskColor(result.risk_level)}`}>
-                          {result.risk_level.toUpperCase()}
-                        </div>
+                        <div className={`text-2xl font-bold ${getRiskColor(result.risk_level)}`}>{result.risk_level.toUpperCase()}</div>
                       </div>
                       <div className="bg-card/50 p-4 rounded border border-primary/10">
                         <div className="text-sm font-semibold text-foreground/60 mb-2">Confidence</div>
-                        <div className="text-2xl font-bold">
-                          {result.phishing_probability_percent}%
-                        </div>
+                        <div className="text-2xl font-bold">{result.phishing_probability_percent}%</div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="bg-card/50 p-4 rounded border border-primary/10">
+                        <div className="text-sm font-semibold text-foreground/60 mb-2">Model Type</div>
+                        <div className="text-sm font-mono break-words">{result.model_type || "URL classifier"}</div>
+                      </div>
+                      <div className="bg-card/50 p-4 rounded border border-primary/10">
+                        <div className="text-sm font-semibold text-foreground/60 mb-2">Model Version</div>
+                        <div className="text-sm font-mono">{result.model_version || "2026.03-hackathon"}</div>
                       </div>
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground/60 mb-4">Detected Features</h3>
-                    <ul className="space-y-3">
-                      <li className="flex justify-between p-2 border-b border-primary/5">
-                        <span>Suspicious Keywords</span>
-                        <span className="font-mono">{result.features?.suspicious_keywords || 0}</span>
-                      </li>
-                      <li className="flex justify-between p-2 border-b border-primary/5">
-                        <span>URL Length</span>
-                        <span className="font-mono">{result.features?.url_length || 0}</span>
-                      </li>
-                      <li className="flex justify-between p-2 border-b border-primary/5">
-                        <span>Subdomains</span>
-                        <span className="font-mono">{result.features?.subdomain_count || 0}</span>
-                      </li>
-                      <li className="flex justify-between p-2 border-b border-primary/5">
-                        <span>Special Characters</span>
-                        <span className="font-mono">{result.features?.special_char_count || 0}</span>
-                      </li>
-                      <li className="flex justify-between p-2">
-                        <span>Uses IP Address</span>
-                        <span className="font-mono">{result.features?.uses_ip ? 'Yes' : 'No'}</span>
-                      </li>
-                    </ul>
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground/60 mb-4">Detected Features</h3>
+                      <ul className="space-y-3">
+                        <li className="flex justify-between p-2 border-b border-primary/5"><span>Suspicious Keywords</span><span className="font-mono">{result.features?.suspicious_keywords || 0}</span></li>
+                        <li className="flex justify-between p-2 border-b border-primary/5"><span>URL Length</span><span className="font-mono">{result.features?.url_length || 0}</span></li>
+                        <li className="flex justify-between p-2 border-b border-primary/5"><span>Subdomains</span><span className="font-mono">{result.features?.subdomain_count || 0}</span></li>
+                        <li className="flex justify-between p-2 border-b border-primary/5"><span>Special Characters</span><span className="font-mono">{result.features?.special_char_count || 0}</span></li>
+                        <li className="flex justify-between p-2"><span>Uses IP Address</span><span className="font-mono">{result.features?.uses_ip ? "Yes" : "No"}</span></li>
+                      </ul>
+                    </div>
+
+                    {Array.isArray(result.reasons) && result.reasons.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground/60 mb-4">Why It Was Flagged</h3>
+                        <ul className="space-y-2">
+                          {result.reasons.map((reason: string, index: number) => (
+                            <li key={index} className="text-sm bg-card/50 p-3 rounded border border-primary/10">{reason}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

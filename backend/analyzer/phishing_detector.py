@@ -1,123 +1,149 @@
-import re
 import ipaddress
-from urllib.parse import urlparse
-import joblib
+import math
 import os
+import re
+from collections import Counter
+from typing import Dict, List
+from urllib.parse import urlparse
+
+import joblib
+import pandas as pd
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_PATH = os.path.join(BASE_DIR, "phishing_model.pkl")
 
-model = joblib.load(MODEL_PATH)
+artifact = joblib.load(MODEL_PATH)
+
+if isinstance(artifact, dict) and "model" in artifact:
+    model = artifact["model"]
+    model_metadata = artifact.get("metadata", {})
+else:
+    model = artifact
+    model_metadata = {"model_type": "legacy"}
 
 
 class PhishingDetector:
-
     suspicious_keywords = [
-        "login", "verify", "update", "secure",
-        "account", "bank", "confirm", "password",
-        "signin", "wallet", "crypto"
+        "login", "verify", "update", "secure", "account", "bank", "confirm",
+        "password", "signin", "wallet", "crypto", "unlock", "recover", "billing",
+        "invoice", "suspended", "payment", "webscr", "auth", "token"
     ]
 
-    def extract_features(self, url: str):
-        features = {}
+    trusted_brands = [
+        "google", "microsoft", "apple", "paypal", "amazon", "netflix",
+        "instagram", "facebook", "whatsapp", "telegram", "dropbox", "linkedin",
+        "github", "coinbase", "binance", "outlook"
+    ]
 
+    suspicious_tlds = {"top", "xyz", "click", "gq", "ml", "cf", "ga", "work", "support"}
+
+    def extract_features(self, url: str) -> Dict[str, float]:
         parsed = urlparse(url)
-        domain = parsed.netloc
+        hostname = (parsed.hostname or "").lower()
+        path = parsed.path or ""
+        query = parsed.query or ""
+        full = url.lower()
+        tokens = [t for t in re.split(r"[^a-z0-9]+", full) if t]
+        token_lengths = [len(t) for t in tokens]
 
-        features["url_length"] = len(url)
+        digit_count = sum(ch.isdigit() for ch in full)
+        letter_count = sum(ch.isalpha() for ch in full)
+        special_char_count = sum(not ch.isalnum() for ch in full)
+        separators = sum(ch in "/._-?=&%@" for ch in full)
+        unique_chars = len(set(full))
 
-        keyword_count = sum(
-            1 for word in self.suspicious_keywords
-            if word in url.lower()
-        )
-        features["suspicious_keywords"] = keyword_count
-
-        features["special_char_count"] = len(re.findall(r"[^\w]", url))
+        keyword_hits = [kw for kw in self.suspicious_keywords if kw in full]
+        brand_hits = [brand for brand in self.trusted_brands if brand in full]
+        subdomain_parts = [part for part in hostname.split(".") if part]
+        registered_domain_parts = subdomain_parts[-2:] if len(subdomain_parts) >= 2 else subdomain_parts
+        registered_domain = ".".join(registered_domain_parts)
+        tld = subdomain_parts[-1] if subdomain_parts else ""
 
         try:
-            ipaddress.ip_address(domain)
-            features["uses_ip"] = 1
-        except:
-            features["uses_ip"] = 0
+            ipaddress.ip_address(hostname)
+            uses_ip = 1
+        except ValueError:
+            uses_ip = 0
 
-        features["subdomain_count"] = domain.count(".")
+        entropy = 0.0
+        if full:
+            counts = Counter(full)
+            entropy = -sum((count / len(full)) * math.log2(count / len(full)) for count in counts.values())
+
+        features = {
+            "url_length": len(url),
+            "hostname_length": len(hostname),
+            "path_length": len(path),
+            "query_length": len(query),
+            "token_count": len(tokens),
+            "avg_token_length": round(sum(token_lengths) / len(token_lengths), 3) if token_lengths else 0.0,
+            "max_token_length": max(token_lengths) if token_lengths else 0,
+            "digit_count": digit_count,
+            "digit_ratio": round(digit_count / max(len(full), 1), 4),
+            "letter_ratio": round(letter_count / max(len(full), 1), 4),
+            "special_char_count": special_char_count,
+            "separator_count": separators,
+            "unique_char_count": unique_chars,
+            "entropy": round(entropy, 4),
+            "https_token_count": full.count("https"),
+            "http_token_count": full.count("http"),
+            "subdomain_count": max(len(subdomain_parts) - 2, 0),
+            "hyphen_count": hostname.count("-"),
+            "underscore_count": full.count("_"),
+            "at_symbol_count": full.count("@"),
+            "double_slash_count": full.count("//"),
+            "equals_count": full.count("="),
+            "ampersand_count": full.count("&"),
+            "percent_count": full.count("%"),
+            "suspicious_keywords": len(keyword_hits),
+            "brand_count": len(brand_hits),
+            "brand_in_subdomain": int(any(brand in hostname and brand not in registered_domain for brand in brand_hits)),
+            "uses_ip": uses_ip,
+            "has_port": int(parsed.port is not None),
+            "is_https": int(parsed.scheme.lower() == "https"),
+            "has_query": int(bool(query)),
+            "has_login_path": int("login" in path.lower() or "signin" in path.lower()),
+            "has_account_path": int(any(token in path.lower() for token in ["account", "verify", "update", "secure", "billing"])),
+            "suspicious_tld": int(tld in self.suspicious_tlds),
+        }
 
         return features
 
-    def analyze(self, url: str):
-        import pandas as pd
-        features = self.extract_features(url)
+    def _build_reason_flags(self, features: Dict[str, float]) -> List[str]:
+        reasons: List[str] = []
 
-        feature_df = pd.DataFrame([{
-            "url_length": features["url_length"],
-            "suspicious_keywords": features["suspicious_keywords"],
-            "special_char_count": features["special_char_count"],
-            "uses_ip": features["uses_ip"],
-            "subdomain_count": features["subdomain_count"]
-        }])
-
-        # Raw model outputs (kept for debugging / transparency)
-        prediction = model.predict(feature_df)[0]
-        probability = float(model.predict_proba(feature_df)[0][1])
-        raw_probability_percent = round(probability * 100, 2)
-
-        # ------------------------------------------------------------------
-        # Heuristic confidence on top of the ML model
-        # ------------------------------------------------------------------
-        # We blend a heuristic score with our Random Forest output.
-        # This gives us nuanced percentages like 15.2% instead of 0% or 100%.
-
-        heuristic_score = 0.0
-
-        # More suspicious keywords → higher risk
-        heuristic_score += min(features["suspicious_keywords"] * 15, 45)
-
-        # Longer URLs are somewhat suspicious
-        if features["url_length"] > 100:
-            heuristic_score += 20
-        elif features["url_length"] > 60:
-            heuristic_score += 10
-        elif features["url_length"] > 30:
-            heuristic_score += 5
-
-        # Many special characters can indicate obfuscation
-        if features["special_char_count"] > 12:
-            heuristic_score += 15
-        elif features["special_char_count"] > 7:
-            heuristic_score += 8
-        elif features["special_char_count"] > 3:
-            heuristic_score += 2
-
-        # Raw IP usage is usually suspicious
         if features["uses_ip"]:
-            heuristic_score += 15
+            reasons.append("URL uses an IP address instead of a domain")
+        if features["brand_in_subdomain"]:
+            reasons.append("Trusted brand appears in the subdomain, which is a common spoofing pattern")
+        if features["suspicious_keywords"] >= 2:
+            reasons.append("Multiple phishing-related keywords were detected in the URL")
+        if features["suspicious_tld"]:
+            reasons.append("Domain uses a high-risk top-level domain")
+        if features["subdomain_count"] >= 3:
+            reasons.append("URL has many subdomains, which often indicates obfuscation")
+        if features["url_length"] >= 90:
+            reasons.append("URL is unusually long")
+        if features["special_char_count"] >= 12:
+            reasons.append("URL contains an unusually high number of special characters")
+        if not features["is_https"]:
+            reasons.append("URL does not use HTTPS")
+        if not reasons:
+            reasons.append("No major phishing indicators were detected in the URL structure")
 
-        # Multiple subdomains can be suspicious
-        if features["subdomain_count"] >= 4:
-            heuristic_score += 15
-        elif features["subdomain_count"] == 3:
-            heuristic_score += 8
-        elif features["subdomain_count"] == 2:
-            heuristic_score += 3
+        return reasons[:4]
 
-        # Add a tiny variance based on the url hash so exact identical
-        # benign URLs look like they were deeply analyzed (e.g. 11.2% vs 14.5%)
-        url_variance = (hash(url) % 500) / 100.0  # +0.00% to +5.00%
+    def analyze(self, url: str):
+        features = self.extract_features(url)
+        model_input = pd.DataFrame([{"url": url, **features}])
 
-        # Blend heuristic with raw model output
-        # Give more weight to the ML probability now that it's nuanced
-        blended_probability = (0.55 * raw_probability_percent) + (0.45 * heuristic_score) + url_variance
-        
-        # Clamp to [1, 99.9]
-        probability_percent = round(max(1.1, min(blended_probability, 99.9)), 2)
+        probability = float(model.predict_proba(model_input)[0][1])
+        prediction = int(probability >= 0.5)
+        probability_percent = round(probability * 100, 2)
 
-        print("ML Probability (raw):", raw_probability_percent)
-        print("Heuristic score:", heuristic_score)
-        print("Final blended probability:", probability_percent)
-
-        if probability_percent >= 70:
+        if probability_percent >= 80:
             risk = "High"
-        elif probability_percent >= 40:
+        elif probability_percent >= 45:
             risk = "Medium"
         else:
             risk = "Low"
@@ -126,7 +152,10 @@ class PhishingDetector:
             "url": url,
             "risk_level": risk,
             "phishing_probability_percent": probability_percent,
-            "ml_prediction": int(prediction),
+            "ml_prediction": prediction,
             "features": features,
-            "raw_ml_probability_percent": raw_probability_percent,
+            "raw_ml_probability_percent": probability_percent,
+            "model_type": model_metadata.get("model_type", "url_text_plus_lexical"),
+            "model_version": model_metadata.get("version", "2026.03-hackathon"),
+            "reasons": self._build_reason_flags(features),
         }

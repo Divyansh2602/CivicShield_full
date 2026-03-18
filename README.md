@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- HERO BANNER -->
-<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=00f5a0&height=200&section=header&text=CivicShield%20AI&fontSize=72&fontColor=0b0f19&fontAlignY=38&desc=Enterprise%20AI%20Cybersecurity%20Intelligence%20Platform&descAlignY=58&descSize=20&descColor=0b0f19" />
+<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=00f5a0&height=200&section=header&text=CivicShield%20AI&fontSize=72&fontColor=0b0f19&fontAlignY=38&desc=AI-Assisted%20Cybersecurity%20Analysis%20Platform&descAlignY=58&descSize=20&descColor=0b0f19" />
 
 <br/>
 
@@ -15,9 +15,9 @@
 
 <br/><br/>
 
-> ### 🛡️ Real-time threat detection · AI-powered vulnerability scanning · Phishing protection · Live global threat globe
+> ### AI-assisted vulnerability scanning | URL phishing classification | executive-ready reporting | global cyber visualization
+> *Built for hackathon with a real scan pipeline, phishing model, and demo-safe visualization layer.*
 >
-> *Built for hackathon — designed for production.*
 
 <br/>
 
@@ -69,7 +69,7 @@ Add images to `screenshots/` and update these paths:
 
 - **Dashboard + Threat Globe**
 
-> Your command center. Risk score, threat feed, and a real-time 3D globe showing active signals and cross-border attack arcs.
+> Your command center. Risk score, threat feed, and a interactive globe showing a simulated threat landscape alongside real scan metrics.
 
 ![Dashboard](screenshots/dashboard.png)
 

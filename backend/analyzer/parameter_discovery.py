@@ -1,6 +1,7 @@
-import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urljoin
+from utils.http_client import safe_get
+
 
 class ParameterDiscovery:
     def __init__(self):
@@ -20,14 +21,13 @@ class ParameterDiscovery:
             inputs = form.find_all("input")
             names = []
 
-            for i in inputs:
-                if i.get("name"):
-                    names.append(i.get("name"))
+            for item in inputs:
+                if item.get("name"):
+                    names.append(item.get("name"))
 
             if names:
                 action = form.get("action")
                 if action:
-                    from urllib.parse import urljoin
                     target_url = urljoin(url, action)
                     self.parameters[target_url] = names
                 else:
@@ -39,9 +39,9 @@ class ParameterDiscovery:
         for url in endpoints:
             print(f"[*] Discovering params for: {url}")
             try:
-                r = requests.get(url, timeout=(2, 2))
+                response = safe_get(url, timeout=(3, 5))
                 self.extract_get_params(url)
-                self.extract_post_params(r.text, url)
+                self.extract_post_params(response.text, url)
                 print(f"[+] Done: {url}")
             except Exception as e:
                 print(f"[-] Failed: {url} - {str(e)}")

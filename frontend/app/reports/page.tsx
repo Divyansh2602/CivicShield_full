@@ -29,11 +29,12 @@ function ReportsContent() {
   const reports = useMemo(() => {
     if (!scanId || !scanData?.result) return []
     const findings = scanData.result.findings || []
+    const target = scanData.result.target || "Current Target"
 
     return [
       {
         id: scanId,
-        name: `${scanData.result.target || "Current Scan Target"} Security Report`,
+        name: `${target} Security Report`,
         date: new Date().toISOString().split("T")[0],
         vulnerabilities: findings.length,
         critical: findings.filter((f: any) => f.risk === "CRITICAL").length,
@@ -52,12 +53,12 @@ function ReportsContent() {
 
           {!scanId ? (
             <div className="glassmorphism rounded-lg p-6 mb-8 border border-warning/30 flex items-center gap-3">
-              <p className="text-warning">No active scan context. Please start a scan from the home page to view and generate reports.</p>
+              <p className="text-warning">No active assessment context. Please start a scan from the home page to view and generate reports.</p>
             </div>
           ) : (
             <>
               <div className="glassmorphism rounded-lg p-6 mb-8">
-                <h2 className="text-lg font-bold mb-4">Generate Report For Current Scan</h2>
+                <h2 className="text-lg font-bold mb-4">Generate Report For Current Assessment</h2>
                 <div className="space-y-4">
                   <div className="p-4 bg-card/50 rounded-lg border border-primary/10">
                     <p className="text-sm font-semibold mb-2">Target URL</p>
@@ -82,7 +83,7 @@ function ReportsContent() {
                     className="w-full px-6 py-3 bg-primary text-background font-bold rounded-lg hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <Download className="w-5 h-5" />
-                    {scanData?.status !== "completed" ? "Scan In Progress..." : "Download PDF Report"}
+                    {scanData?.status !== "completed" ? "Assessment In Progress..." : "Download PDF Report"}
                   </button>
                   {scanData?.status !== "completed" && (
                     <p className="text-xs text-center text-foreground/50 mt-2">Reports can only be downloaded once the scan is completed.</p>
@@ -104,7 +105,7 @@ function ReportsContent() {
                               <Calendar className="w-4 h-4" />
                               {report.date}
                             </div>
-                            <span>{report.vulnerabilities} vulnerabilities found</span>
+                            <span>{report.vulnerabilities} findings recorded</span>
                             <div className="flex gap-2">
                               {report.critical > 0 && <span className="px-2 py-0.5 bg-critical/10 text-critical rounded text-xs">{report.critical} Critical</span>}
                               {report.high > 0 && <span className="px-2 py-0.5 bg-warning/10 text-warning rounded text-xs">{report.high} High</span>}

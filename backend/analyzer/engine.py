@@ -5,6 +5,7 @@ from analyzer.surface_mapper import AttackSurfaceMapper
 from analyzer.parameter_discovery import ParameterDiscovery
 from analyzer.vulnerability_scanner import VulnerabilityScanner
 from analyzer.idor_scanner import IDORScanner
+from analyzer.passive_security_analyzer import PassiveSecurityAnalyzer
 
 
 STAGES = {
@@ -66,6 +67,15 @@ def run_scan(target: str, progress_callback=None):
     findings_list = []
     seen = set()
 
+    passive_analyzer = PassiveSecurityAnalyzer()
+    passive_findings = passive_analyzer.analyze(target, all_endpoints)
+    for finding in passive_findings:
+        key = (finding["vuln"], finding["url"], finding.get("param", "-"), finding.get("signal"))
+        if key in seen:
+            continue
+        seen.add(key)
+        findings_list.append(finding)
+
     emit("vulnerability_scan", "Testing parameters for injection vulnerabilities", {
         "pages_crawled": len(crawler.visited),
         "html_endpoints": len(endpoints),
@@ -73,6 +83,7 @@ def run_scan(target: str, progress_callback=None):
         "total_endpoints": len(all_endpoints),
         "urls_with_params": len(params),
         "parameters_discovered": total_params,
+        "passive_findings": len(passive_findings),
     })
     vuln_scanner = VulnerabilityScanner()
     vuln_results = vuln_scanner.test(params)
@@ -91,6 +102,7 @@ def run_scan(target: str, progress_callback=None):
         "payloads_tested": vuln_scanner.stats["payloads_tested"],
         "requests_made": vuln_scanner.stats["requests_made"],
         "confirmed_findings": len(findings_list),
+        "passive_findings": len(passive_findings),
     })
     idor = IDORScanner()
     for url, p in params.items():
@@ -132,6 +144,7 @@ def run_scan(target: str, progress_callback=None):
         "payloads_tested": vuln_scanner.stats["payloads_tested"],
         "requests_made": vuln_scanner.stats["requests_made"],
         "confirmed_findings": len(findings_list),
+        "passive_findings": len(passive_findings),
         "severity_counts": severity_counts,
         "vulnerability_types": vuln_type_counts,
         "high_risk_surface": sum(1 for item in surface.values() if item.get("risk") == "HIGH"),

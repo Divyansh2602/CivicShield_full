@@ -1,6 +1,7 @@
-import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
+from utils.http_client import safe_get
+
 
 class EndpointCrawler:
     def __init__(self, base_url, max_pages=10):
@@ -10,7 +11,6 @@ class EndpointCrawler:
         self.to_visit = [base_url]
         self.endpoints = set()
         self.max_pages = max_pages
-
         self.headers = {
             "User-Agent": "Mozilla/5.0 (AttackSurfaceScanner)"
         }
@@ -43,8 +43,8 @@ class EndpointCrawler:
                 continue
 
             try:
-                r = requests.get(clean_url, headers=self.headers, timeout=(2, 2))
-                soup = BeautifulSoup(r.text, "html.parser")
+                response = safe_get(clean_url, headers=self.headers, timeout=(3, 5))
+                soup = BeautifulSoup(response.text, "html.parser")
                 self.visited.add(clean_url)
 
                 for tag in soup.find_all("a", href=True):
@@ -65,7 +65,6 @@ class EndpointCrawler:
         return self.endpoints
 
 
-# -------- RUN --------
 if __name__ == "__main__":
     target = input("Enter target URL (with http/https): ")
     scanner = EndpointCrawler(target)

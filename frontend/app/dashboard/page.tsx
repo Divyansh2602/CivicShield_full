@@ -57,6 +57,7 @@ function DashboardContent() {
   const summary = useMemo(() => completedResult?.summary || scanData?.progress?.stats || {}, [completedResult, scanData?.progress?.stats])
   const findings = useMemo(() => completedResult?.findings || [], [completedResult])
   const progress = scanData?.progress || { stage: "queued", percent: 0, message: "Waiting for scan to start", stats: {} }
+  const assessmentTitle = completedResult?.target ? "Current Assessment" : "Assessment Overview"
 
   const severityCounts = useMemo(() => {
     const base = { critical: 0, high: 0, medium: 0, low: 0 }
@@ -99,6 +100,9 @@ function DashboardContent() {
     if ((summary.high_risk_surface || 0) > 0) {
       items.push({ type: "warning", message: `${summary.high_risk_surface} high-risk endpoints were identified in the discovered attack surface.` })
     }
+    if ((summary.passive_findings || 0) > 0) {
+      items.push({ type: "info", message: `${summary.passive_findings} passive security observations were recorded from headers, transport posture, and exposed form surfaces.` })
+    }
     if ((summary.payloads_tested || 0) > 0) {
       items.push({ type: "info", message: `${summary.payloads_tested} payload checks were executed across ${summary.urls_with_params || 0} parameterized endpoints.` })
     }
@@ -125,7 +129,7 @@ function DashboardContent() {
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement("a")
         a.href = url
-        a.download = `report_${scanId}.pdf`
+        a.download = "assessment_report.pdf"
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
@@ -156,7 +160,7 @@ function DashboardContent() {
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-16 h-16 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">No Scan Selected</h2>
+          <h2 className="text-2xl font-bold mb-2">No Assessment Selected</h2>
           <p className="text-foreground/60 mb-6">Start a new scan from the home page to view results</p>
           <button onClick={() => router.push("/")} className="px-6 py-2 bg-primary text-background font-bold rounded hover:bg-primary/90">
             Go to Home
@@ -173,7 +177,7 @@ function DashboardContent() {
         <div className="mb-8">
           <div className="glassmorphism rounded-lg p-6 flex items-center justify-between gap-6 flex-col md:flex-row">
             <div>
-              <h2 className="text-xl font-bold mb-2">Scan #{scanId}</h2>
+              <h2 className="text-xl font-bold mb-2">{assessmentTitle}</h2>
               <p className="text-foreground/60">
                 Status: <span className={`font-semibold ${scanData?.status === "completed" ? "text-primary" : scanData?.status === "failed" ? "text-critical" : "text-warning"}`}>
                   {scanData?.status?.toUpperCase()}
@@ -222,7 +226,7 @@ function DashboardContent() {
             <div className="flex items-start gap-4">
               <AlertTriangle className="w-6 h-6 text-critical flex-shrink-0 mt-1" />
               <div>
-                <h3 className="font-bold text-critical mb-1">Scan Failed</h3>
+                <h3 className="font-bold text-critical mb-1">Assessment Failed</h3>
                 <p className="text-foreground/60">{error.detail || "An error occurred during the scan"}</p>
               </div>
             </div>
@@ -311,7 +315,7 @@ function DashboardContent() {
         </div>
 
         <div className="glassmorphism rounded-lg p-6 mt-8">
-          <h3 className="text-lg font-bold mb-4">Detected Vulnerabilities</h3>
+          <h3 className="text-lg font-bold mb-4">Detected Findings</h3>
           <VulnerabilityTable vulnerabilities={findings} />
         </div>
       </main>

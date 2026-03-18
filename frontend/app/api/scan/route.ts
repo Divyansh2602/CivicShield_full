@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000"
+const SCAN_START_TIMEOUT_MS = 30000
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,9 +12,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ detail: "Target URL is required" }, { status: 400 })
     }
 
-    // Forward to Python backend with a timeout so it doesn't hang Next.js
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), SCAN_START_TIMEOUT_MS)
 
     try {
       const response = await fetch(`${BACKEND_URL}/scan`, {
@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ target }),
-        signal: controller.signal
+        signal: controller.signal,
       })
 
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutId)
 
       const data = await response.json()
 
@@ -35,11 +35,14 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(data)
     } catch (fetchError: any) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        return NextResponse.json({ detail: "Backend connection timed out. The scan might still be running." }, { status: 504 })
+      clearTimeout(timeoutId)
+      if (fetchError.name === "AbortError") {
+        return NextResponse.json(
+          { detail: "Backend took too long to acknowledge the scan request. If Render is waking up, retry once after a few seconds." },
+          { status: 504 }
+        )
       }
-      throw fetchError;
+      throw fetchError
     }
   } catch (error) {
     console.error("Scan API error:", error)

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useEffect, useMemo, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -23,11 +23,22 @@ const FALLBACK_INSIGHTS: ThreatInsight[] = [
 
 export default function AIThreatInsights({ insights }: { insights?: ThreatInsight[] }) {
   const resolvedInsights = useMemo(() => {
-    const source = insights && insights.length > 0 ? insights : FALLBACK_INSIGHTS
-    return source.map((item) => ({ ...item, icon: ICONS[item.type] }))
+    const source = Array.isArray(insights)
+      ? insights.filter(
+          (item): item is ThreatInsight =>
+            Boolean(item) &&
+            typeof item.message === "string" &&
+            item.message.trim().length > 0 &&
+            item.type in ICONS
+        )
+      : []
+
+    const safeSource = source.length > 0 ? source : FALLBACK_INSIGHTS
+    return safeSource.map((item) => ({ ...item, icon: ICONS[item.type] }))
   }, [insights])
 
   const [currentIndex, setCurrentIndex] = useState(0)
+  const activeInsight = resolvedInsights[Math.min(currentIndex, resolvedInsights.length - 1)] ?? resolvedInsights[0]
 
   useEffect(() => {
     setCurrentIndex(0)
@@ -62,15 +73,15 @@ export default function AIThreatInsights({ insights }: { insights?: ThreatInsigh
           <div className="h-16 relative w-full overflow-hidden bg-background/40 rounded border border-white/5 p-3 flex items-center">
             <AnimatePresence mode="popLayout">
               <motion.div
-                key={currentIndex}
+                key={`${currentIndex}-${activeInsight.message}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.5, ease: "anticipate" }}
                 className="flex items-start gap-3 w-full"
               >
-                <div className="flex-shrink-0 mt-0.5">{resolvedInsights[currentIndex].icon}</div>
-                <p className="text-sm md:text-base text-foreground/90 font-mono leading-relaxed">{resolvedInsights[currentIndex].message}</p>
+                <div className="flex-shrink-0 mt-0.5">{activeInsight.icon}</div>
+                <p className="text-sm md:text-base text-foreground/90 font-mono leading-relaxed">{activeInsight.message}</p>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -84,3 +95,4 @@ export default function AIThreatInsights({ insights }: { insights?: ThreatInsigh
     </div>
   )
 }
+

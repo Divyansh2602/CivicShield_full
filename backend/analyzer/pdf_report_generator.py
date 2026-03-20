@@ -16,6 +16,20 @@ class PDFReportGenerator:
         header = styles["Heading2"]
         subheader = styles["Heading3"]
         small = ParagraphStyle("Small", parent=body, fontSize=9, leading=12)
+        table_cell = ParagraphStyle(
+            "TableCell",
+            parent=body,
+            fontSize=8,
+            leading=10,
+            wordWrap="CJK",
+            splitLongWords=True,
+        )
+        table_header = ParagraphStyle(
+            "TableHeader",
+            parent=table_cell,
+            fontName="Helvetica-Bold",
+            textColor=colors.white,
+        )
 
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         summary = summary or {}
@@ -53,16 +67,25 @@ class PDFReportGenerator:
         story.append(Spacer(1, 16))
 
         story.append(Paragraph("Finding Summary", header))
-        table_data = [["Risk", "Vulnerability", "Parameter", "Method", "Remediation"]]
+        table_data = [[
+            Paragraph("Risk", table_header),
+            Paragraph("Vulnerability", table_header),
+            Paragraph("Parameter", table_header),
+            Paragraph("Method", table_header),
+            Paragraph("Remediation", table_header),
+        ]]
         for finding in findings[:12]:
             table_data.append([
-                finding.get("risk", "-"),
-                finding.get("vuln", "-"),
-                finding.get("param", "-"),
-                finding.get("method", "-"),
-                finding.get("remediation", "Review server-side validation and access controls."),
+                Paragraph(str(finding.get("risk", "-")), table_cell),
+                Paragraph(str(finding.get("vuln", "-")), table_cell),
+                Paragraph(str(finding.get("param", "-")), table_cell),
+                Paragraph(str(finding.get("method", "-")), table_cell),
+                Paragraph(
+                    str(finding.get("remediation", "Review server-side validation and access controls.")),
+                    table_cell,
+                ),
             ])
-        summary_table = Table(table_data, colWidths=[48, 72, 72, 46, 250], repeatRows=1)
+        summary_table = Table(table_data, colWidths=[50, 80, 72, 48, 212], repeatRows=1)
         summary_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.black),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -92,3 +115,4 @@ class PDFReportGenerator:
 
         doc.build(story)
         print(f"[+] PDF report generated: {filename}")
+

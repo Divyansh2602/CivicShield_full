@@ -41,7 +41,7 @@ export default function Scanner() {
       // Redirect to dashboard
       window.location.href = `/dashboard?scanId=${data.scan_id}`
     } catch (err) {
-      setError("An error occurred. Please try again.")
+      setError("The request could not reach the backend. If Render is cold-starting, wait a few seconds and retry.")
       setLoading(false)
     }
   }
@@ -142,21 +142,21 @@ export default function Scanner() {
               <div className="glassmorphism rounded-lg p-6">
                 <h3 className="font-bold mb-3">Full Scan Includes:</h3>
                 <ul className="text-sm text-foreground/70 space-y-2">
-                  <li>✓ SQL Injection detection</li>
-                  <li>✓ Cross-Site Scripting (XSS)</li>
-                  <li>✓ API endpoint enumeration</li>
-                  <li>✓ Security misconfigurations</li>
-                  <li>✓ Phishing threat analysis</li>
+                  <li>SQL Injection detection</li>
+                  <li>Cross-Site Scripting (XSS)</li>
+                  <li>API endpoint enumeration</li>
+                  <li>Security misconfigurations</li>
+                  <li>Phishing threat analysis</li>
                 </ul>
               </div>
               <div className="glassmorphism rounded-lg p-6">
                 <h3 className="font-bold mb-3">Scan Results Include:</h3>
                 <ul className="text-sm text-foreground/70 space-y-2">
-                  <li>✓ Risk severity levels</li>
-                  <li>✓ Vulnerability descriptions</li>
-                  <li>✓ Affected endpoints</li>
-                  <li>✓ Remediation guidance</li>
-                  <li>✓ PDF report download</li>
+                  <li>Risk severity levels</li>
+                  <li>Vulnerability descriptions</li>
+                  <li>Affected endpoints</li>
+                  <li>Remediation guidance</li>
+                  <li>PDF report download</li>
                 </ul>
               </div>
             </div>
@@ -166,3 +166,4 @@ export default function Scanner() {
     </div>
   )
 }
+

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000"
-const SCAN_START_TIMEOUT_MS = 30000
+const SCAN_START_TIMEOUT_MS = 55000
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +30,6 @@ export async function POST(request: NextRequest) {
       })
 
       clearTimeout(timeoutId)
-
       const data = await response.json()
 
       if (!response.ok) {
@@ -38,7 +41,7 @@ export async function POST(request: NextRequest) {
       clearTimeout(timeoutId)
       if (fetchError.name === "AbortError") {
         return NextResponse.json(
-          { detail: "Backend took too long to acknowledge the scan request. If Render is waking up, retry once after a few seconds." },
+          { detail: "Backend took too long to acknowledge the scan request. Render may still be waking up; wait a few seconds and retry." },
           { status: 504 }
         )
       }

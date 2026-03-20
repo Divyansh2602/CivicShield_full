@@ -15,7 +15,19 @@ import AIThreatInsights, { ThreatInsight } from "@/components/AIThreatInsights"
 import { DashboardSkeleton } from "@/components/SkeletonLoader"
 import toast from "react-hot-toast"
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = async (url: string) => {
+  const response = await fetch(url, { cache: "no-store" })
+  const data = await response.json()
+
+  if (!response.ok) {
+    const error = new Error(data.detail || "Request failed") as Error & { status?: number; detail?: string }
+    error.status = response.status
+    error.detail = data.detail
+    throw error
+  }
+
+  return data
+}
 
 const STAGE_LABELS: Record<string, string> = {
   queued: "Queued",
@@ -50,7 +62,13 @@ function DashboardContent() {
   const { data: scanData, isLoading, error, mutate } = useSWR(
     scanId ? `/api/scan/${scanId}` : null,
     fetcher,
-    { refreshInterval: 2000 }
+    {
+      refreshInterval: (latestData) => latestData?.status === "completed" || latestData?.status === "failed" ? 0 : 3000,
+      keepPreviousData: true,
+      shouldRetryOnError: true,
+      errorRetryCount: 12,
+      errorRetryInterval: 5000,
+    }
   )
 
   const completedResult = scanData?.status === "completed" ? scanData?.result : null
@@ -136,7 +154,8 @@ function DashboardContent() {
         document.body.removeChild(a)
         toast.success("Report downloaded successfully", { id: toastId })
       } else {
-        toast.error("Failed to generate report", { id: toastId })
+        const data = await response.json().catch(() => null)
+        toast.error(data?.detail || "Failed to generate report", { id: toastId })
       }
     } catch (err) {
       console.error("Failed to download report:", err)
@@ -226,8 +245,10 @@ function DashboardContent() {
             <div className="flex items-start gap-4">
               <AlertTriangle className="w-6 h-6 text-critical flex-shrink-0 mt-1" />
               <div>
-                <h3 className="font-bold text-critical mb-1">Assessment Failed</h3>
-                <p className="text-foreground/60">{error.detail || "An error occurred during the scan"}</p>
+                <h3 className="font-bold text-critical mb-1">Assessment Unavailable</h3>
+                <p className="text-foreground/60">
+                  {error.detail || "The backend did not respond in time. The dashboard will keep retrying automatically."}
+                </p>
               </div>
             </div>
           </div>
@@ -333,3 +354,4 @@ export default function Dashboard() {
     </div>
   )
 }
+

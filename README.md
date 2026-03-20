@@ -209,6 +209,7 @@ This frontend expects a FastAPI backend at `BACKEND_URL` with:
 - `GET /scan/{scan_id}`
 - `GET /report/{scan_id}`
 - `POST /phishing/check`
+- `GET /healthz`
 
 ---
 
@@ -273,5 +274,35 @@ components/
 ## 📄 License
 
 This project is licensed under **GNU GPL v3.0**. See `LICENSE`.
+
+
+## Keep Render Warm
+
+If your backend is deployed on Render and you want to reduce cold starts, this repo now includes a simple keep-warm monitor:
+
+- Backend health endpoint: `GET /healthz`
+- GitHub Action scheduler: `.github/workflows/keep-render-warm.yml`
+- Manual ping script: `scripts/keep_warm.py`
+
+### GitHub setup
+
+1. Open your GitHub repository settings.
+2. Add a repository secret named `RENDER_BACKEND_URL`.
+3. Set it to your deployed backend URL, for example:
+
+```env
+RENDER_BACKEND_URL=https://your-backend.onrender.com
+```
+
+The workflow will ping `https://your-backend.onrender.com/healthz` every 10 minutes and can also be run manually from the Actions tab.
+
+### Manual test
+
+```bash
+python scripts/keep_warm.py --base-url https://your-backend.onrender.com
+```
+
+If you are on a Render plan that still sleeps aggressively, this reduces cold starts but does not override Render platform limits.
+
 
 <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=00f5a0&height=100&section=footer&fontColor=0b0f19" />

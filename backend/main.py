@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 from sqlalchemy import func
 import uvicorn
@@ -52,6 +52,15 @@ class AuthRequest(BaseModel):
 @app.get("/")
 def root():
     return {"message": "CivicShield AI API Running"}
+
+
+@app.get("/healthz")
+def healthcheck():
+    return {
+        "status": "ok",
+        "service": "civicshield-backend",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @app.get("/dashboard")

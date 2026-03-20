@@ -294,7 +294,7 @@ If your backend is deployed on Render and you want to reduce cold starts, this r
 RENDER_BACKEND_URL=https://your-backend.onrender.com
 ```
 
-The workflow will ping `https://your-backend.onrender.com/healthz` every 10 minutes and can also be run manually from the Actions tab.
+The workflow will ping `https://your-backend.onrender.com/healthz` every 5 minutes and can also be run manually from the Actions tab.
 
 ### Manual test
 

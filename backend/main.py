@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
 import os
-from sqlalchemy import func
+from sqlalchemy import func, text
 import uvicorn
 import sys
 
@@ -56,11 +56,30 @@ def root():
 
 @app.get("/healthz")
 def healthcheck():
-    return {
-        "status": "ok",
-        "service": "civicshield-backend",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
+    db = SessionLocal()
+    timestamp = datetime.now(timezone.utc).isoformat()
+    try:
+        # Touch the database so keep-warm pings exercise the full request path.
+        db.execute(text("SELECT 1"))
+        return {
+            "status": "ok",
+            "service": "civicshield-backend",
+            "database": "ok",
+            "timestamp": timestamp,
+        }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "degraded",
+                "service": "civicshield-backend",
+                "database": "unavailable",
+                "timestamp": timestamp,
+                "error": str(exc),
+            },
+        ) from exc
+    finally:
+        db.close()
 
 
 @app.get("/dashboard")

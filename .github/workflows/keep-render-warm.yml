@@ -36,7 +36,7 @@ jobs:
         env:
           TARGET_URL: ${{ steps.target.outputs.url }}
         run: |
-          curl --fail --silent --show-error \
+          curl --fail-with-body --silent --show-error \
             --location \
             --max-time 15 \
             --retry 15 \

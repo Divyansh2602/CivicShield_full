@@ -5,21 +5,41 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
+concurrency:
+  group: keep-render-warm
+  cancel-in-progress: true
+
 jobs:
   ping-backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Ping backend health endpoint
+      - name: Resolve keep-warm target
+        id: target
         env:
+          RENDER_HEALTHCHECK_URL: ${{ secrets.RENDER_HEALTHCHECK_URL }}
           RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
         run: |
-          if [ -z "$RENDER_BACKEND_URL" ]; then
-            echo "Missing RENDER_BACKEND_URL GitHub secret"
+          if [ -n "$RENDER_HEALTHCHECK_URL" ]; then
+            url="$RENDER_HEALTHCHECK_URL"
+          elif [ -n "$RENDER_BACKEND_URL" ]; then
+            url="${RENDER_BACKEND_URL%/}/healthz"
+          else
+            echo "Missing GitHub secret. Set RENDER_HEALTHCHECK_URL or RENDER_BACKEND_URL."
             exit 1
           fi
 
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Resolved keep-warm target: $url"
+
+      - name: Ping backend health endpoint
+        env:
+          TARGET_URL: ${{ steps.target.outputs.url }}
+        run: |
           curl --fail --silent --show-error \
+            --location \
             --max-time 20 \
             --retry 2 \
             --retry-delay 5 \
-            "${RENDER_BACKEND_URL%/}/healthz"
+            --write-out "\nHTTP %{http_code}\n" \
+            "$TARGET_URL"

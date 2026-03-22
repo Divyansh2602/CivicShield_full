@@ -7,3 +7,4 @@ pandas
 reportlab
 click
 rich
+xgboost

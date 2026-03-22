@@ -5,6 +5,7 @@ import re
 from collections import Counter
 from typing import Dict, List
 from urllib.parse import urlparse
+import difflib
 
 import joblib
 import pandas as pd
@@ -12,14 +13,17 @@ import pandas as pd
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_PATH = os.path.join(BASE_DIR, "phishing_model.pkl")
 
-artifact = joblib.load(MODEL_PATH)
-
-if isinstance(artifact, dict) and "model" in artifact:
-    model = artifact["model"]
-    model_metadata = artifact.get("metadata", {})
-else:
-    model = artifact
-    model_metadata = {"model_type": "legacy"}
+try:
+    artifact = joblib.load(MODEL_PATH)
+    if isinstance(artifact, dict) and "model" in artifact:
+        model = artifact["model"]
+        model_metadata = artifact.get("metadata", {})
+    else:
+        model = artifact
+        model_metadata = {"model_type": "legacy"}
+except Exception:
+    model = None
+    model_metadata = {}
 
 
 class PhishingDetector:
@@ -32,10 +36,23 @@ class PhishingDetector:
     trusted_brands = [
         "google", "microsoft", "apple", "paypal", "amazon", "netflix",
         "instagram", "facebook", "whatsapp", "telegram", "dropbox", "linkedin",
-        "github", "coinbase", "binance", "outlook"
+        "github", "coinbase", "binance", "outlook", "chase", "wellsfargo"
     ]
 
-    suspicious_tlds = {"top", "xyz", "click", "gq", "ml", "cf", "ga", "work", "support"}
+    suspicious_tlds = {"top", "xyz", "click", "gq", "ml", "cf", "ga", "work", "support", "vip", "club", "site"}
+
+    def _fuzzy_brand_match(self, hostname: str) -> int:
+        """Calculate max similarity of hostname parts to trusted brands."""
+        max_sim = 0.0
+        parts = re.split(r"[^a-z0-9]+", hostname)
+        for part in parts:
+            if not part: continue
+            for brand in self.trusted_brands:
+                sim = difflib.SequenceMatcher(None, part, brand).ratio()
+                if sim > max_sim:
+                    max_sim = sim
+        # Return 1 if highly similar (typosquatting like amaz0n = ~0.85) but not identical
+        return 1 if 0.8 < max_sim < 1.0 else 0
 
     def extract_features(self, url: str) -> Dict[str, float]:
         parsed = urlparse(url)
@@ -98,6 +115,7 @@ class PhishingDetector:
             "suspicious_keywords": len(keyword_hits),
             "brand_count": len(brand_hits),
             "brand_in_subdomain": int(any(brand in hostname and brand not in registered_domain for brand in brand_hits)),
+            "typosquatting_detected": self._fuzzy_brand_match(hostname),
             "uses_ip": uses_ip,
             "has_port": int(parsed.port is not None),
             "is_https": int(parsed.scheme.lower() == "https"),
@@ -115,25 +133,28 @@ class PhishingDetector:
         if features["uses_ip"]:
             reasons.append("URL uses an IP address instead of a domain")
         if features["brand_in_subdomain"]:
-            reasons.append("Trusted brand appears in the subdomain, which is a common spoofing pattern")
+            reasons.append("Trusted brand appears in the subdomain (Common spoofing strategy)")
+        if features["typosquatting_detected"]:
+            reasons.append("Typosquatting detected (Domain looks suspiciously similar to a trusted brand)")
         if features["suspicious_keywords"] >= 2:
-            reasons.append("Multiple phishing-related keywords were detected in the URL")
+            reasons.append("Multiple phishing-related keywords were detected in the URL path")
         if features["suspicious_tld"]:
-            reasons.append("Domain uses a high-risk top-level domain")
+            reasons.append("Domain uses a high-risk top-level domain (.click, .xyz, etc)")
         if features["subdomain_count"] >= 3:
             reasons.append("URL has many subdomains, which often indicates obfuscation")
         if features["url_length"] >= 90:
             reasons.append("URL is unusually long")
-        if features["special_char_count"] >= 12:
-            reasons.append("URL contains an unusually high number of special characters")
         if not features["is_https"]:
             reasons.append("URL does not use HTTPS")
         if not reasons:
-            reasons.append("No major phishing indicators were detected in the URL structure")
+            reasons.append("No major phishing indicators were manually detected in the URL structure")
 
         return reasons[:4]
 
-    def analyze(self, url: str):
+    def analyze(self, url: str) -> Dict:
+        if not model:
+            return {"error": "Phishing Model not trained or missing."}
+
         features = self.extract_features(url)
         model_input = pd.DataFrame([{"url": url, **features}])
 
@@ -155,7 +176,7 @@ class PhishingDetector:
             "ml_prediction": prediction,
             "features": features,
             "raw_ml_probability_percent": probability_percent,
-            "model_type": model_metadata.get("model_type", "url_text_plus_lexical"),
-            "model_version": model_metadata.get("version", "2026.03-hackathon"),
+            "model_type": model_metadata.get("model_type", "Enterprise-XGBoost"),
+            "model_version": model_metadata.get("version", "0.2.0"),
             "reasons": self._build_reason_flags(features),
         }

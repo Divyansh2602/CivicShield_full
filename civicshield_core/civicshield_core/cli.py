@@ -88,11 +88,11 @@ def phish(url):
     detector = PhishingDetector()
     result = detector.analyze(url)
     
-    is_phishing = result.get('is_phishing', False)
+    is_phishing = result.get('ml_prediction', 0) == 1
     phish_color = "red" if is_phishing else "green"
     phish_text = "Yes" if is_phishing else "No"
     
-    console.print(Panel(f"[bold]Threat Score:[/bold] {result.get('threat_score', 0)}\n[bold]Confidence:[/bold] {result.get('confidence', 0)}\n[bold]Is Phishing:[/bold] [{phish_color}]{phish_text}[/{phish_color}]", title="Phishing Analysis Result", box=ROUNDED, expand=False))
+    console.print(Panel(f"[bold]Risk Level:[/bold] {result.get('risk_level', 'Unknown')}\n[bold]Phishing Probability:[/bold] {result.get('phishing_probability_percent', 0)}%\n[bold]Is Phishing:[/bold] [{phish_color}]{phish_text}[/{phish_color}]", title="Phishing Analysis Result", box=ROUNDED, expand=False))
 
 cli.add_command(scan)
 cli.add_command(phish)

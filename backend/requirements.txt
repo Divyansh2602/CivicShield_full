@@ -27,5 +27,3 @@ python-jose
 # ============================
 python-multipart
 jinja2
-celery
-redis

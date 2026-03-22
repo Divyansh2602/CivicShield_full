@@ -1,9 +1,4 @@
 services:
-  - type: redis
-    name: civicshield-redis
-    ipAllowList: []
-    plan: free
-
   - type: web
     name: civicshield-backend
     env: python
@@ -11,22 +6,3 @@ services:
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
-    envVars:
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: civicshield-redis
-          property: connectionString
-
-  - type: worker
-    name: civicshield-worker
-    env: python
-    rootDir: backend
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: celery -A worker worker --loglevel=info
-    envVars:
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: civicshield-redis
-          property: connectionString

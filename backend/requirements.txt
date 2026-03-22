@@ -18,23 +18,9 @@ bcrypt
 python-jose
 
 # ============================
-# HTTP / Parsing
+# Core Engine Package
 # ============================
-requests
-beautifulsoup4
-dnspython
-
-# ============================
-# ML Layer
-# ============================
-scikit-learn
-joblib
-pandas
-
-# ============================
-# PDF Report
-# ============================
-reportlab
+-e ../civicshield_core
 
 # ============================
 # Forms

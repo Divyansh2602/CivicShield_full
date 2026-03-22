@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: civicshield_core
+Version: 0.1.2
+Requires-Dist: requests
+Requires-Dist: beautifulsoup4
+Requires-Dist: dnspython
+Requires-Dist: scikit-learn
+Requires-Dist: joblib
+Requires-Dist: pandas
+Requires-Dist: reportlab
+Requires-Dist: click
+Requires-Dist: rich
+Dynamic: requires-dist

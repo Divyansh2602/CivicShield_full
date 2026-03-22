@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs, urljoin
-from utils.http_client import safe_get
+from civicshield_core.utils.http_client import safe_get
 
 
 class ParameterDiscovery:

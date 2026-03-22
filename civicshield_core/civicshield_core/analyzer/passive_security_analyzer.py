@@ -1,5 +1,5 @@
 from urllib.parse import urlparse
-from utils.http_client import safe_get
+from civicshield_core.utils.http_client import safe_get
 
 
 class PassiveSecurityAnalyzer:

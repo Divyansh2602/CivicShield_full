@@ -1,0 +1,2 @@
+[console_scripts]
+civicshield = civicshield_core.cli:cli

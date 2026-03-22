@@ -16,9 +16,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from analyzer.phishing_detector import PhishingDetector
-from analyzer.engine import run_scan
-from analyzer.pdf_report_generator import PDFReportGenerator
+from civicshield_core.analyzer.phishing_detector import PhishingDetector
+from civicshield_core.analyzer.engine import run_scan
+from civicshield_core.analyzer.pdf_report_generator import PDFReportGenerator
 from database.db import engine, SessionLocal
 from database.models import Base, Scan, Vulnerability, User
 from api.auth import hash_password, verify_password, create_access_token

@@ -1,11 +1,11 @@
-from recon.basic_recon import basic_recon
-from crawler.endpoint_crawler import EndpointCrawler
-from analyzer.js_endpoint_extractor import JSEndpointExtractor
-from analyzer.surface_mapper import AttackSurfaceMapper
-from analyzer.parameter_discovery import ParameterDiscovery
-from analyzer.vulnerability_scanner import VulnerabilityScanner
-from analyzer.idor_scanner import IDORScanner
-from analyzer.passive_security_analyzer import PassiveSecurityAnalyzer
+from civicshield_core.recon.basic_recon import basic_recon
+from civicshield_core.crawler.endpoint_crawler import EndpointCrawler
+from civicshield_core.analyzer.js_endpoint_extractor import JSEndpointExtractor
+from civicshield_core.analyzer.surface_mapper import AttackSurfaceMapper
+from civicshield_core.analyzer.parameter_discovery import ParameterDiscovery
+from civicshield_core.analyzer.vulnerability_scanner import VulnerabilityScanner
+from civicshield_core.analyzer.idor_scanner import IDORScanner
+from civicshield_core.analyzer.passive_security_analyzer import PassiveSecurityAnalyzer
 
 
 STAGES = {
@@ -21,7 +21,6 @@ STAGES = {
 
 
 def run_scan(target: str, progress_callback=None):
-    print(f"[+] Starting full scan on {target}")
 
     def emit(stage, message, stats=None):
         if progress_callback:
@@ -45,7 +44,9 @@ def run_scan(target: str, progress_callback=None):
     })
     js_extractor = JSEndpointExtractor(target)
     js_endpoints = js_extractor.run(endpoints)
-    all_endpoints = endpoints.union(js_endpoints)
+
+    from urllib.parse import urljoin
+    all_endpoints = {urljoin(target, e) for e in endpoints.union(js_endpoints)}
 
     emit("surface_map", "Correlating attack surface and assigning endpoint risk", {
         "pages_crawled": len(crawler.visited),
@@ -152,8 +153,6 @@ def run_scan(target: str, progress_callback=None):
     }
 
     emit("complete", "Scan completed and report artifacts are ready", summary)
-
-    print(f"[+] Scan completed for {target}. Found {len(findings_list)} vulnerabilities.")
 
     return {
         "target": target,

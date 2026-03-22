@@ -1,6 +1,6 @@
 import re
 from urllib.parse import urljoin
-from utils.http_client import safe_get
+from civicshield_core.utils.http_client import safe_get
 
 
 class JSEndpointExtractor:

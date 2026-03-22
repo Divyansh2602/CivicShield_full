@@ -23,7 +23,9 @@ python-jose
 -e ../civicshield_core
 
 # ============================
-# Forms
+# Forms & Workers
 # ============================
 python-multipart
 jinja2
+celery
+redis

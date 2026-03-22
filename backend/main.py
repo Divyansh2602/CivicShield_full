@@ -17,11 +17,14 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from civicshield_core.analyzer.phishing_detector import PhishingDetector
-from civicshield_core.analyzer.engine import run_scan
 from civicshield_core.analyzer.pdf_report_generator import PDFReportGenerator
 from database.db import engine, SessionLocal
 from database.models import Base, Scan, Vulnerability, User
 from api.auth import hash_password, verify_password, create_access_token
+
+from celery.result import AsyncResult
+from worker import celery_app
+from tasks import run_target_scan
 
 Base.metadata.create_all(bind=engine)
 
@@ -36,13 +39,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-scan_store = {}
-report_lock = __import__("threading").Lock()
-
 
 class ScanRequest(BaseModel):
     target: str
-
 
 class AuthRequest(BaseModel):
     username: str
@@ -51,7 +50,7 @@ class AuthRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "CivicShield AI API Running"}
+    return {"message": "CivicShield AI API Running - Background Workers Active"}
 
 
 @app.get("/healthz")
@@ -59,7 +58,6 @@ def healthcheck():
     db = SessionLocal()
     timestamp = datetime.now(timezone.utc).isoformat()
     try:
-        # Touch the database so keep-warm pings exercise the full request path.
         db.execute(text("SELECT 1"))
         return {
             "status": "ok",
@@ -176,18 +174,6 @@ def check_phishing(url: str):
     return PhishingDetector().analyze(url)
 
 
-def update_scan_progress(scan_id: int, stage: str, percent: int, message: str, stats=None):
-    if scan_id not in scan_store:
-        return
-    scan_store[scan_id]["progress"] = {
-        "stage": stage,
-        "percent": percent,
-        "message": message,
-        "stats": stats or {},
-        "updated_at": datetime.utcnow().isoformat(),
-    }
-
-
 def build_scan_payload(db, db_scan):
     vulns = db.query(Vulnerability).filter(Vulnerability.scan_id == db_scan.id).all()
     findings = []
@@ -233,56 +219,8 @@ def build_scan_payload(db, db_scan):
     }
 
 
-def background_scan(scan_id: int, target: str):
-    db = SessionLocal()
-    try:
-        scan_store[scan_id]["status"] = "running"
-        update_scan_progress(scan_id, "recon", 10, "Preparing scan pipeline")
-
-        db_scan = db.query(Scan).filter(Scan.id == scan_id).first()
-        if db_scan:
-            db_scan.status = "running"
-            db.commit()
-
-        result = run_scan(
-            target,
-            progress_callback=lambda stage, percent, message, stats=None: update_scan_progress(
-                scan_id, stage, percent, message, stats
-            ),
-        )
-
-        for finding in result["findings"]:
-            db.add(Vulnerability(
-                scan_id=db_scan.id,
-                risk=finding["risk"],
-                vuln_type=finding["vuln"],
-                url=finding["url"],
-                param=finding.get("param"),
-                payload=finding.get("payload"),
-                evidence=finding.get("evidence"),
-            ))
-
-        if db_scan:
-            db_scan.status = "completed"
-        db.commit()
-        scan_store[scan_id]["status"] = "completed"
-        scan_store[scan_id]["result"] = result
-        update_scan_progress(scan_id, "complete", 100, "Scan completed and results are ready", result.get("summary", {}))
-    except Exception as e:
-        if scan_id in scan_store:
-            scan_store[scan_id]["status"] = "failed"
-            scan_store[scan_id]["error"] = str(e)
-            update_scan_progress(scan_id, "failed", 100, "Scan failed before completion")
-        db_scan = db.query(Scan).filter(Scan.id == scan_id).first()
-        if db_scan:
-            db_scan.status = "failed"
-            db.commit()
-    finally:
-        db.close()
-
-
 @app.post("/scan")
-def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
+def start_scan(request: ScanRequest):
     if not request.target.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid URL format")
 
@@ -296,19 +234,8 @@ def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
     finally:
         db.close()
 
-    scan_store[scan_id] = {
-        "status": "queued",
-        "result": None,
-        "error": None,
-        "progress": {
-            "stage": "queued",
-            "percent": 5,
-            "message": "Scan queued and waiting for execution",
-            "stats": {},
-            "updated_at": datetime.utcnow().isoformat(),
-        },
-    }
-    background_tasks.add_task(background_scan, scan_id, request.target)
+    # Offload entirely to separate Celery Worker processes via Redis Queue
+    run_target_scan.apply_async(args=[scan_id, request.target], task_id=str(scan_id))
     return {"scan_id": scan_id, "status": "queued"}
 
 
@@ -316,37 +243,61 @@ def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
 def scan_status(scan_id: int):
     db = SessionLocal()
     try:
-        if scan_id in scan_store:
-            scan_data = scan_store[scan_id]
-        else:
-            db_scan = db.query(Scan).filter(Scan.id == scan_id).first()
-            if not db_scan:
-                raise HTTPException(status_code=404, detail="Scan ID not found")
+        db_scan = db.query(Scan).filter(Scan.id == scan_id).first()
+        if not db_scan:
+            raise HTTPException(status_code=404, detail="Scan ID not found")
 
-            scan_data = {
-                "status": db_scan.status,
-                "error": None,
+        res = AsyncResult(str(scan_id), app=celery_app)
+
+        if res.state == 'SUCCESS':
+            result_data = res.result.get("result") if isinstance(res.result, dict) else None
+            return {
+                "scan_id": scan_id,
+                "status": "completed",
                 "progress": {
-                    "stage": db_scan.status,
-                    "percent": 100 if db_scan.status == "completed" else 0,
-                    "message": "Historical scan loaded from storage",
+                    "stage": "complete",
+                    "percent": 100,
+                    "message": "Scan completed successfully by worker",
                     "stats": {},
                     "updated_at": datetime.utcnow().isoformat(),
                 },
+                "result": result_data or build_scan_payload(db, db_scan)
             }
-            if db_scan.status == "completed":
-                scan_data["result"] = build_scan_payload(db, db_scan)
-                scan_store[scan_id] = scan_data
+        
+        elif res.state in ['PENDING', 'STARTED', 'PROGRESS']:
+            progress = res.info if res.state == 'PROGRESS' and isinstance(res.info, dict) else {
+                "stage": "queued" if res.state == 'PENDING' else "starting",
+                "percent": 5,
+                "message": "Worker is preparing scan pipeline..." if res.state == 'PENDING' else "Worker started",
+                "stats": {},
+                "updated_at": datetime.utcnow().isoformat(),
+            }
+            return {
+                "scan_id": scan_id,
+                "status": "running" if res.state in ['STARTED', 'PROGRESS'] else "queued",
+                "progress": progress
+            }
+        
+        # Fallback to Database if Celery task is wiped from Redis
+        if db_scan.status == "completed":
+             return {
+                "scan_id": scan_id,
+                "status": "completed",
+                "progress": {
+                    "stage": "complete",
+                    "percent": 100,
+                    "message": "Historical scan loaded from safe storage",
+                    "stats": {},
+                    "updated_at": datetime.utcnow().isoformat(),
+                },
+                "result": build_scan_payload(db, db_scan)
+            }
 
-        response = {
+        return {
             "scan_id": scan_id,
-            "status": scan_data["status"],
-            "error": scan_data.get("error"),
-            "progress": scan_data.get("progress"),
+            "status": db_scan.status,
+            "error": str(res.info) if res.state == 'FAILURE' else None
         }
-        if scan_data["status"] == "completed" and "result" in scan_data:
-            response["result"] = scan_data["result"]
-        return response
     finally:
         db.close()
 
@@ -355,21 +306,19 @@ def scan_status(scan_id: int):
 def generate_report(scan_id: int):
     db = SessionLocal()
     try:
-        if scan_id in scan_store and scan_store[scan_id].get("status") == "completed" and scan_store[scan_id].get("result"):
-            data = scan_store[scan_id]["result"]
-        else:
-            db_scan = db.query(Scan).filter(Scan.id == scan_id).first()
-            if not db_scan:
-                raise HTTPException(status_code=404, detail="Scan ID not found")
-            if db_scan.status != "completed":
-                raise HTTPException(status_code=400, detail="Scan not completed yet")
-            data = build_scan_payload(db, db_scan)
+        db_scan = db.query(Scan).filter(Scan.id == scan_id).first()
+        if not db_scan:
+            raise HTTPException(status_code=404, detail="Scan ID not found")
+        if db_scan.status != "completed":
+            raise HTTPException(status_code=400, detail="Scan not completed yet")
+        
+        data = build_scan_payload(db, db_scan)
 
         report_filename = f"pentest_report_{scan_id}.pdf"
-        with report_lock:
-            PDFReportGenerator().generate(data["target"], data["findings"], data.get("summary"), filename=report_filename)
-            if not os.path.exists(report_filename):
-                raise HTTPException(status_code=500, detail="Report generation failed")
+        PDFReportGenerator().generate(data["target"], data["findings"], data.get("summary"), filename=report_filename)
+        
+        if not os.path.exists(report_filename):
+            raise HTTPException(status_code=500, detail="Report generation failed")
 
         return FileResponse(path=report_filename, media_type="application/pdf", filename=f"report_{scan_id}.pdf")
     finally:

@@ -24,5 +24,9 @@ civicshield_core/analyzer/surface_mapper.py
 civicshield_core/analyzer/vulnerability_scanner.py
 civicshield_core/crawler/__init__.py
 civicshield_core/crawler/endpoint_crawler.py
+civicshield_core/ml/__init__.py
+civicshield_core/ml/train_phishing_model.py
+civicshield_core/recon/__init__.py
+civicshield_core/recon/basic_recon.py
 civicshield_core/utils/__init__.py
 civicshield_core/utils/http_client.py

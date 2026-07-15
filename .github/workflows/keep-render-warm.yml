@@ -20,13 +20,14 @@ jobs:
           RENDER_HEALTHCHECK_URL: ${{ secrets.RENDER_HEALTHCHECK_URL }}
           RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
         run: |
+          # Prefer a secret if configured; otherwise fall back to the known
+          # public backend URL so the keep-warm never breaks on a missing secret.
           if [ -n "$RENDER_HEALTHCHECK_URL" ]; then
             url="$RENDER_HEALTHCHECK_URL"
           elif [ -n "$RENDER_BACKEND_URL" ]; then
             url="${RENDER_BACKEND_URL%/}/healthz"
           else
-            echo "Missing GitHub secret. Set RENDER_HEALTHCHECK_URL or RENDER_BACKEND_URL."
-            exit 1
+            url="https://civicshield-hack.onrender.com/healthz"
           fi
 
           echo "url=$url" >> "$GITHUB_OUTPUT"

@@ -255,9 +255,9 @@ export function ThreatMap() {
   const monitoringCountries = ["United States", "United Kingdom", "Germany", "India", "Japan", "Australia"];
 
   return (
-    <div className="relative w-full h-[520px] rounded-2xl border border-sky-500/30 bg-slate-900/40 backdrop-blur-xl shadow-[0_0_60px_rgba(15,23,42,0.9)] overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.28)_0,transparent_55%),radial-gradient(circle_at_bottom,rgba(15,23,42,0.95)_0,transparent_65%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0)_0,rgba(15,23,42,0.85)_70%,rgba(15,23,42,1)_100%)]" />
+    <div className="relative w-full h-[520px] rounded-2xl border border-line bg-surface/70 backdrop-blur-xl shadow-panel overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(61,245,196,0.14)_0,transparent_55%),radial-gradient(circle_at_bottom,rgba(5,7,11,0.95)_0,transparent_65%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(5,7,11,0)_0,rgba(5,7,11,0.85)_70%,rgba(5,7,11,1)_100%)]" />
 
       <div className="relative z-10 flex flex-col h-full">
         <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-white/10">

@@ -22,6 +22,7 @@ from civicshield_core.analyzer.pdf_report_generator import PDFReportGenerator
 from database.db import engine, SessionLocal
 from database.models import Base, Scan, Vulnerability, User
 from api.auth import hash_password, verify_password, create_access_token
+from ssrf import validate_target, TargetNotAllowed
 
 Base.metadata.create_all(bind=engine)
 
@@ -285,6 +286,13 @@ def background_scan(scan_id: int, target: str):
 def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
     if not request.target.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid URL format")
+
+    # SSRF guard: refuse targets that resolve to internal/private/metadata
+    # addresses before the scan is ever queued.
+    try:
+        validate_target(request.target)
+    except TargetNotAllowed as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     db = SessionLocal()
     try:

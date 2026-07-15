@@ -13,6 +13,7 @@ import VulnerabilityTable from "@/components/VulnerabilityTable"
 import CyberAttackMap from "@/components/WorldMap"
 import AIThreatInsights from "@/components/AIThreatInsights"
 import { DashboardSkeleton } from "@/components/SkeletonLoader"
+import { displayScanNumber } from "@/lib/scanNumber"
 import toast from "react-hot-toast"
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -23,6 +24,13 @@ function DashboardContent() {
   const scanId = searchParams.get("scanId")
   const [mockData, setMockData] = useState<any>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Per-session display number (resets each browser session, per visitor).
+  // Computed after mount so it never causes a hydration mismatch.
+  const [scanLabel, setScanLabel] = useState<string>("—")
+  useEffect(() => {
+    setScanLabel(displayScanNumber(scanId))
+  }, [scanId])
 
   const { data: scanData, isLoading, error, mutate } = useSWR(
     scanId ? `/api/scan/${scanId}` : null,
@@ -174,7 +182,7 @@ function DashboardContent() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="kicker">Scan</span>
-                <span className="font-mono text-sm text-foreground">#{scanId}</span>
+                <span className="font-mono text-sm text-foreground">#{scanLabel}</span>
               </div>
               <p className="text-sm mt-0.5">
                 <span className="text-muted">Status:</span>{" "}

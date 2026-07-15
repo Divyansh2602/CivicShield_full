@@ -10,7 +10,7 @@ interface SkeletonLoaderProps {
 export function SkeletonLoader({ className = "", style }: SkeletonLoaderProps) {
     return (
         <div
-            className={`animate-shimmer rounded-md ${className}`}
+            className={`animate-shimmer rounded-2xl ${className}`}
             style={style}
         />
     )
@@ -18,29 +18,19 @@ export function SkeletonLoader({ className = "", style }: SkeletonLoaderProps) {
 
 export function DashboardSkeleton() {
     return (
-        <div className="p-6 md:p-8 w-full max-w-[1600px] mx-auto space-y-8">
-            {/* Top Banner Skeleton */}
-            <SkeletonLoader className="h-24 w-full rounded-lg" />
-
-            {/* Risk Metrics Grid Skeleton */}
+        <div className="w-full space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <SkeletonLoader className="h-40 rounded-lg" />
-                <SkeletonLoader className="h-40 rounded-lg" />
-                <SkeletonLoader className="h-40 rounded-lg" />
-                <SkeletonLoader className="h-40 rounded-lg" />
+                <SkeletonLoader className="h-44" />
+                <SkeletonLoader className="h-44" />
+                <SkeletonLoader className="h-44" />
+                <SkeletonLoader className="h-44" />
             </div>
-
-            {/* AI Threat Insight Skeleton */}
-            <SkeletonLoader className="h-32 w-full rounded-lg" />
-
-            {/* Charts Grid Skeleton */}
+            <SkeletonLoader className="h-32 w-full" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <SkeletonLoader className="h-96 rounded-lg" />
-                <SkeletonLoader className="h-96 rounded-lg" />
+                <SkeletonLoader className="h-80" />
+                <SkeletonLoader className="h-80" />
             </div>
-
-            {/* World Map Skeleton */}
-            <SkeletonLoader className="h-[500px] w-full rounded-lg" />
+            <SkeletonLoader className="h-[520px] w-full" />
         </div>
     )
 }

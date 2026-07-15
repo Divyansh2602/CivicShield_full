@@ -1,42 +1,45 @@
 # ============================
 # Core API
 # ============================
-fastapi
-uvicorn
+fastapi>=0.110,<0.116
+uvicorn[standard]>=0.27,<0.35
+pydantic>=2.6,<3
+pydantic-settings>=2.2,<3
 
 # ============================
 # Database
 # ============================
-sqlalchemy
+sqlalchemy>=2.0,<2.1
 
 # ============================
 # Authentication
 # ============================
-passlib[bcrypt]
-bcrypt
-python-jose
+passlib[bcrypt]>=1.7,<2
+bcrypt>=4.0,<5
+python-jose[cryptography]>=3.3,<4
 
 # ============================
 # HTTP / Parsing
 # ============================
-requests
-beautifulsoup4
-dnspython
+requests>=2.31,<3
+beautifulsoup4>=4.12,<5
+dnspython>=2.6,<3
 
 # ============================
 # ML Layer
 # ============================
-scikit-learn
-joblib
-pandas
+scikit-learn>=1.4,<2
+joblib>=1.3,<2
+pandas>=2.2,<3
 
 # ============================
 # PDF Report
 # ============================
-reportlab
+reportlab>=4.1,<5
 
 # ============================
-# Forms
+# Rate limiting & utils
 # ============================
-python-multipart
-jinja2
+slowapi>=0.1.9,<0.2
+python-multipart>=0.0.9,<0.1
+jinja2>=3.1,<4

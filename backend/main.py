@@ -252,6 +252,24 @@ def background_scan(scan_id: int, target: str):
             ),
         )
 
+        # Guard against a misleading "healthy" result when the target was never
+        # actually reached. If the scanner crawled no pages, discovered no
+        # endpoints, made no requests and found nothing, the connection failed
+        # (e.g. the site is down, blocked, or the URL is wrong) — report that as
+        # a failed scan instead of "0 vulnerabilities / healthy".
+        summary = result.get("summary", {}) or {}
+        reached = (
+            summary.get("pages_crawled", 0)
+            or summary.get("total_endpoints", 0)
+            or summary.get("requests_made", 0)
+            or len(result.get("findings", []))
+        )
+        if not reached:
+            raise ConnectionError(
+                f"Target unreachable — the scanner could not connect to {target}. "
+                "Confirm the URL is correct, publicly reachable, and responding."
+            )
+
         for finding in result["findings"]:
             db.add(Vulnerability(
                 scan_id=db_scan.id,

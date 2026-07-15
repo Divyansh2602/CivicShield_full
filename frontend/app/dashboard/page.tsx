@@ -229,6 +229,23 @@ function DashboardContent() {
           </div>
         )}
 
+        {/* Failed scan (e.g. target unreachable) — surfaced from the scan status,
+            which returns HTTP 200 so the SWR `error` above never fires. */}
+        {scanData?.status === "failed" && (
+          <div className="panel p-6 border-crit/30 mb-8">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="w-6 h-6 text-crit flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-crit mb-1">Scan Failed</h3>
+                <p className="text-muted text-sm">
+                  {scanData?.error ||
+                    "The scan could not be completed. The target may be unreachable or the URL may be invalid."}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         {mockData && (
           <>

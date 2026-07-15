@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { ReactNode } from "react"
+import { useEffect, useState, ReactNode } from "react"
 
 interface MetricCardProps {
   label: string
@@ -10,13 +9,21 @@ interface MetricCardProps {
   icon?: ReactNode
 }
 
+const TONE: Record<NonNullable<MetricCardProps["color"]>, string> = {
+  critical: "var(--crit)",
+  warning: "var(--high)",
+  primary: "var(--signal)",
+  success: "var(--signal)",
+}
+
 export default function MetricCard({ label, value, color = "primary", icon }: MetricCardProps) {
   const [animatedValue, setAnimatedValue] = useState(0)
+  const tone = TONE[color]
 
   useEffect(() => {
     let current = 0
     const interval = setInterval(() => {
-      current += Math.ceil(value / 20)
+      current += Math.max(1, Math.ceil(value / 20))
       if (current >= value) {
         current = value
         clearInterval(interval)
@@ -26,32 +33,29 @@ export default function MetricCard({ label, value, color = "primary", icon }: Me
     return () => clearInterval(interval)
   }, [value])
 
-  const colorClasses = {
-    critical: "text-critical",
-    warning: "text-warning",
-    primary: "text-primary",
-    success: "text-primary",
-  }
+  const pct = Math.min((animatedValue / Math.max(value, 10)) * 100, 100)
 
   return (
-    <div className="glassmorphism rounded-lg p-6 flex flex-col hover-lift cursor-default relative overflow-hidden group">
-      {/* Dynamic Background Glow on Hover */}
-      <div className={`absolute -inset-1 opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500 rounded-lg pointer-events-none ${colorClasses[color].replace('text-', 'bg-')}`} />
+    <div className="panel hover-lift p-6 flex flex-col relative overflow-hidden group">
+      {/* Severity glow on hover */}
+      <div
+        className="absolute -top-16 -right-16 w-40 h-40 rounded-full blur-3xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none"
+        style={{ background: tone }}
+      />
 
-      <div className="flex items-start justify-between mb-4 relative z-10">
-        <span className="text-sm font-semibold text-foreground/60">{label}</span>
-        {icon && <div className={colorClasses[color]}>{icon}</div>}
+      <div className="flex items-start justify-between mb-4 relative">
+        <span className="kicker">{label}</span>
+        {icon && <div style={{ color: tone }}>{icon}</div>}
       </div>
-      <div className={`text-4xl font-bold ${colorClasses[color]} mb-2 relative z-10`}>
-        {animatedValue}
+
+      <div className="font-mono text-4xl font-semibold mb-3 tabular-nums relative" style={{ color: tone }}>
+        {String(animatedValue).padStart(2, "0")}
       </div>
-      <div className="w-full bg-background/50 rounded h-1 relative z-10">
+
+      <div className="w-full h-1 rounded-full bg-white/5 overflow-hidden relative">
         <div
-          className={`h-full rounded transition-all duration-300 ${color === "critical" ? "bg-critical" :
-              color === "warning" ? "bg-warning" :
-                "bg-primary"
-            }`}
-          style={{ width: `${(animatedValue / Math.max(value, 10)) * 100}%` }}
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: tone }}
         />
       </div>
     </div>

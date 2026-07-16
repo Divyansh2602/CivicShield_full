@@ -124,6 +124,24 @@ const computeGlobalThreatIndex = (events: ThreatEvent[]): number => {
 export function ThreatMap() {
   const globeRef = useRef<any>(null);
 
+  // Responsive globe sizing — react-globe.gl needs explicit pixel dimensions,
+  // so a hardcoded 520px overflows/crops on mobile. Measure the container and
+  // fit a square globe into it (clamped so it stays sensible on any screen).
+  const globeWrapRef = useRef<HTMLDivElement>(null);
+  const [globeSize, setGlobeSize] = useState(420);
+  useEffect(() => {
+    const el = globeWrapRef.current;
+    if (!el) return;
+    const update = () => {
+      const s = Math.min(el.clientWidth || 420, el.clientHeight || el.clientWidth || 420);
+      setGlobeSize(Math.max(240, Math.min(Math.round(s), 560)));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Start with deterministic empty state for SSR; populate with
   // random/simulated data only on the client after hydration.
   const [threatEvents, setThreatEvents] = useState<ThreatEvent[]>([]);
@@ -315,13 +333,13 @@ export function ThreatMap() {
         </div>
 
         <div className="flex-1 flex flex-col lg:flex-row">
-          <div className="relative flex-1 min-h-[260px] lg:min-h-0">
+          <div ref={globeWrapRef} className="relative flex-1 min-h-[260px] lg:min-h-0 overflow-hidden">
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative flex items-center justify-center w-[520px] h-[520px]">
+              <div className="relative flex items-center justify-center" style={{ width: globeSize, height: globeSize }}>
                 <Globe
                   ref={globeRef}
-                  width={520}
-                  height={520}
+                  width={globeSize}
+                  height={globeSize}
                   backgroundColor="rgba(0,0,0,0)"
                   globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
                   bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"

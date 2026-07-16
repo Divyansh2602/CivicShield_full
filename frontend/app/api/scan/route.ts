@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000"
 
+// The backend runs on Render's free tier and can cold-start (~60s) after
+// sleeping. Give this route room to wait through a wake instead of failing fast.
+export const maxDuration = 60
+export const dynamic = "force-dynamic"
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -13,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     // Forward to Python backend with a timeout so it doesn't hang Next.js
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 58000); // allow for a cold-start wake
 
     try {
       const response = await fetch(`${BACKEND_URL}/scan`, {

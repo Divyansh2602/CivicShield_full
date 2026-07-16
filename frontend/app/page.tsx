@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, useReducedMotion, type Variants } from "framer-motion"
@@ -30,6 +30,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [focused, setFocused] = useState(false)
   const [error, setError] = useState("")
+
+  // Wake the (free-tier) backend as soon as the page loads, so it's warm by the
+  // time the user starts a scan — avoids the ~60s cold-start timeout on submit.
+  useEffect(() => {
+    fetch("/api/health").catch(() => {})
+  }, [])
 
   const stats = useMemo(
     () => [
@@ -64,20 +70,41 @@ export default function Home() {
       }
 
       const fullUrl = trimmed.startsWith("http") ? trimmed : `https://${trimmed}`
-      const response = await fetch("/api/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target: fullUrl }),
-      })
 
-      const data = await response.json()
-      if (!response.ok) {
-        setError(data.detail || "Failed to start scan")
-        setLoading(false)
-        return
+      // The backend may be cold-starting (~60s on the free tier). Retry a few
+      // times so the first scan of the session doesn't fail on a wake-up.
+      const maxAttempts = 3
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const response = await fetch("/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ target: fullUrl }),
+          })
+          const data = await response.json().catch(() => ({}))
+
+          if (response.ok && data.scan_id) {
+            router.push(`/dashboard?scanId=${data.scan_id}`)
+            return
+          }
+
+          // 502/503/504 => backend still waking; otherwise it's a real error.
+          const waking = response.status === 502 || response.status === 503 || response.status === 504
+          if (!waking || attempt === maxAttempts) {
+            setError(data.detail || "Failed to start scan")
+            setLoading(false)
+            return
+          }
+        } catch {
+          if (attempt === maxAttempts) {
+            setError("Couldn't reach the scanner. Please try again in a moment.")
+            setLoading(false)
+            return
+          }
+        }
+        setError("Waking up the scanner… this can take up to a minute on the first scan.")
+        await new Promise((r) => setTimeout(r, 4000))
       }
-
-      router.push(`/dashboard?scanId=${data.scan_id}`)
     } catch {
       setError("An error occurred. Please try again.")
       setLoading(false)

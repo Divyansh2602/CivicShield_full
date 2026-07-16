@@ -1,7 +1,7 @@
 "use client"
 
 import { Globe, Server, Zap, Network } from "lucide-react"
-import { useMemo, useRef, useEffect } from "react"
+import { useMemo, useRef, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import useSWR from "swr"
 import dynamic from "next/dynamic"
@@ -15,6 +15,21 @@ function AttackSurfaceContent() {
   const searchParams = useSearchParams()
   const scanId = searchParams.get("scanId")
   const graphRef = useRef<any>(null)
+
+  // Measure the graph container so the force-graph canvas is responsive
+  // (it takes explicit pixel width/height — a hardcoded width overflows/crops on mobile).
+  const graphWrapRef = useRef<HTMLDivElement>(null)
+  const [graphSize, setGraphSize] = useState({ width: 800, height: 500 })
+  useEffect(() => {
+    const el = graphWrapRef.current
+    if (!el) return
+    const update = () =>
+      setGraphSize({ width: el.clientWidth, height: el.clientHeight || 500 })
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const { data: scanData } = useSWR(
     scanId ? `/api/scan/${scanId}` : null,
@@ -100,13 +115,13 @@ function AttackSurfaceContent() {
       </div>
 
       <SectionCard title="Attack Surface Map">
-        <div className="w-full h-[500px] rounded-xl overflow-hidden border border-line bg-void relative">
+        <div ref={graphWrapRef} className="w-full h-[500px] rounded-xl overflow-hidden border border-line bg-void relative">
           {nodes.length > 0 ? (
             <ForceGraph2D
               ref={graphRef}
               graphData={graphData}
-              width={1000}
-              height={500}
+              width={graphSize.width}
+              height={graphSize.height}
               backgroundColor="rgba(0,0,0,0)"
               nodeRelSize={6}
               linkColor="color"

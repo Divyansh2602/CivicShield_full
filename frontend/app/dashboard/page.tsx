@@ -106,19 +106,38 @@ function DashboardContent() {
 
   const handleDownloadReport = async () => {
     if (!scanId) return
+    const reportUrl = `/api/report/${scanId}`
+
+    // Mobile browsers (iOS Safari especially) ignore blob `download` links, so
+    // the anchor trick silently fails there. Open the endpoint directly instead
+    // — it sends Content-Disposition, so the browser downloads/opens the PDF
+    // natively. Must run synchronously in the click handler to avoid popup
+    // blocking (no await before window.open).
+    const isMobile =
+      typeof navigator !== "undefined" &&
+      /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent)
+    if (isMobile) {
+      window.open(reportUrl, "_blank", "noopener,noreferrer")
+      toast.success("Opening report…", { style: { background: '#121826', color: '#00f5a0' } })
+      return
+    }
+
+    // Desktop: fetch as a blob so we get a proper filename and inline error handling.
     const toastId = toast.loading("Generating report...", { style: { background: '#121826', color: '#00f5a0' } })
     try {
-      const response = await fetch(`/api/report/${scanId}`)
+      const response = await fetch(reportUrl)
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement("a")
         a.href = url
         a.download = `report_${scanId}.pdf`
+        a.rel = "noopener"
         document.body.appendChild(a)
         a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
+        a.remove()
+        // Revoke after a tick so the download has started (immediate revoke can cancel it).
+        setTimeout(() => window.URL.revokeObjectURL(url), 15000)
         toast.success("Report downloaded successfully", { id: toastId })
       } else {
         toast.error("Failed to generate report", { id: toastId })

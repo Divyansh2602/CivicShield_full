@@ -122,11 +122,32 @@ function DashboardContent() {
       return
     }
 
-    // Desktop: fetch as a blob so we get a proper filename and inline error handling.
-    const toastId = toast.loading("Generating report...", { style: { background: '#121826', color: '#00f5a0' } })
+    // Desktop: fetch as a blob so we get a proper filename + inline error handling.
+    // The backend is on a free tier that cold-starts (~50s after idle), so retry
+    // a few times while it wakes rather than failing on the first attempt — that
+    // single-shot failure was the "report can't be downloaded" complaint.
+    const toastStyle = { background: '#121826', color: '#00f5a0' }
+    const toastId = toast.loading("Generating report… (may take up to a minute if the scanner was idle)", { style: toastStyle })
+    const RETRYABLE = new Set([502, 503, 504])
     try {
-      const response = await fetch(reportUrl)
-      if (response.ok) {
+      let response: Response | null = null
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        try {
+          response = await fetch(reportUrl, { cache: "no-store" })
+        } catch {
+          response = null // network error — treat as retryable (backend waking)
+        }
+        if (response && response.ok) break
+        const retryable = !response || RETRYABLE.has(response.status)
+        if (attempt < 4 && retryable) {
+          toast.loading("Scanner is waking up, retrying…", { id: toastId, style: toastStyle })
+          await new Promise((r) => setTimeout(r, 5000))
+          continue
+        }
+        break
+      }
+
+      if (response && response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement("a")
@@ -140,7 +161,13 @@ function DashboardContent() {
         setTimeout(() => window.URL.revokeObjectURL(url), 15000)
         toast.success("Report downloaded successfully", { id: toastId })
       } else {
-        toast.error("Failed to generate report", { id: toastId })
+        let detail = "Failed to generate report"
+        try {
+          if (response) detail = (await response.json())?.detail || detail
+        } catch {
+          /* non-JSON body — keep generic message */
+        }
+        toast.error(detail, { id: toastId })
       }
     } catch (err) {
       console.error("Failed to download report:", err)

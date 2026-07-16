@@ -388,7 +388,7 @@ export function ThreatMap() {
               </div>
             </div>
 
-            <div className="pointer-events-none absolute left-6 bottom-6 bg-slate-950/80 border border-slate-700/60 rounded-xl px-3 py-2 text-[11px] text-slate-300 flex flex-col gap-1 backdrop-blur-md">
+            <div className="pointer-events-none absolute left-6 bottom-6 bg-slate-950/80 border border-slate-700/60 rounded-xl px-3 py-2 text-[11px] text-slate-300 hidden md:flex flex-col gap-1 backdrop-blur-md">
               <div className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
                 <span className="uppercase tracking-[0.18em] text-sky-300">Active threat paths</span>
@@ -398,7 +398,7 @@ export function ThreatMap() {
               </p>
             </div>
 
-            <div className="pointer-events-none absolute left-4 top-6 w-[160px] bg-slate-950/90 border border-slate-700/70 rounded-lg px-2.5 py-3 text-[10px] text-slate-300 space-y-1.5 backdrop-blur-md">
+            <div className="pointer-events-none absolute left-4 top-6 w-[160px] bg-slate-950/90 border border-slate-700/70 rounded-lg px-2.5 py-3 text-[10px] text-slate-300 space-y-1.5 backdrop-blur-md hidden md:block">
               <p className="uppercase tracking-[0.25em] text-slate-400 text-[10px]">
                 Country threat posture
               </p>

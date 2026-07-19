@@ -1,0 +1,125 @@
+{
+  "info": {
+    "name": "CivicShield API",
+    "description": "Functional API tests for the CivicShield backend. Set the `baseUrl` collection variable (default http://localhost:8000). Run in the Postman app (Collection Runner) or via Newman:\n\n    npx newman run tests/postman/civicshield.postman_collection.json --env-var baseUrl=http://localhost:8000",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "scanId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": { "method": "GET", "url": "{{baseUrl}}/healthz" },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('service ok', () => pm.expect(b.status).to.eql('ok'));",
+              "pm.test('database ok', () => pm.expect(b.database).to.eql('ok'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scan - rejects non-http (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"target\": \"ftp://example.com\"}" },
+        "url": "{{baseUrl}}/scan"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('bad input is 400', () => pm.response.to.have.status(400));"] }
+        }
+      ]
+    },
+    {
+      "name": "Scan - SSRF blocked (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"target\": \"http://169.254.169.254/latest/meta-data/\"}" },
+        "url": "{{baseUrl}}/scan"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('internal target blocked', () => pm.response.to.have.status(400));"] }
+        }
+      ]
+    },
+    {
+      "name": "Scan - create (returns scan_id)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"target\": \"http://example.com\"}" },
+        "url": "{{baseUrl}}/scan"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('scan accepted', () => pm.expect(pm.response.code).to.be.oneOf([200, 202]));",
+              "const b = pm.response.json();",
+              "pm.test('has scan_id', () => pm.expect(b.scan_id).to.be.a('number'));",
+              "pm.collectionVariables.set('scanId', b.scan_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scan - poll status until completed",
+      "request": { "method": "GET", "url": "{{baseUrl}}/scan/{{scanId}}" },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const b = pm.response.json();",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "if (b.status === 'queued' || b.status === 'running') {",
+              "  // not done yet — wait, then re-run THIS request (Collection Runner loop)",
+              "  setTimeout(() => {}, 3000);",
+              "  postman.setNextRequest('Scan - poll status until completed');",
+              "} else {",
+              "  pm.test('scan completed', () => pm.expect(b.status).to.eql('completed'));",
+              "  pm.test('result has findings array', () => pm.expect(b.result.findings).to.be.an('array'));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phishing - flags suspicious URL",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/phishing/check?url=http://paypal-verify-login.tk/confirm"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('has risk_level', () => pm.expect(b.risk_level).to.be.oneOf(['High','Medium','Low']));",
+              "pm.test('probability 0-100', () => pm.expect(b.phishing_probability_percent).to.be.within(0, 100));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

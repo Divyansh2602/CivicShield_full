@@ -1,0 +1,5 @@
+# QE test dependencies (kept separate from the app's runtime deps).
+#   pip install -r tests/requirements.txt
+pytest==8.3.3
+requests==2.32.3
+selenium==4.25.0

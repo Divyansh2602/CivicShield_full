@@ -1,0 +1,58 @@
+# ===================================================
+# CivicShield AI - full stack (db + backend + frontend)
+#
+#   docker compose up --build
+#
+# Frontend  -> http://localhost:3000
+# Backend   -> http://localhost:8000   (docs at /docs, health at /healthz)
+#
+# Override any value via a .env file next to this one (see .env.example).
+# ===================================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-civicshield}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-civicshield}
+      POSTGRES_DB: ${POSTGRES_DB:-civicshield}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-civicshield} -d ${POSTGRES_DB:-civicshield}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      # civicshield_core normalizes postgres:// -> postgresql:// automatically.
+      DATABASE_URL: ${DATABASE_URL:-postgresql://civicshield:civicshield@db:5432/civicshield}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      # Server-side calls from the Next.js API routes reach the backend service.
+      BACKEND_URL: http://backend:8000
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

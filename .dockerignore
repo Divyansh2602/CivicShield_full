@@ -1,0 +1,40 @@
+# Backend build context is the repo root — keep it lean.
+
+# VCS / CI / docs
+.git
+.github
+.remember
+*.md
+!backend/README.md
+screenshots
+
+# The entire frontend is built from its own context (./frontend)
+frontend
+
+# Python cruft
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/*.egg-info
+
+# Local/committed SQLite DB and generated reports (Postgres is used in compose)
+backend/civicshield.db
+backend/pentest_report_*.pdf
+backend/report.html
+**/pentest_report*.pdf
+
+# Environments / secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Docker / editor
+docker-compose.yml
+**/Dockerfile
+.dockerignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db

@@ -1,0 +1,14 @@
+node_modules
+.next
+npm-debug.log*
+Dockerfile
+.dockerignore
+.git
+.env
+.env.*
+!.env.example
+.eslintrc.json
+.vscode
+.idea
+.DS_Store
+Thumbs.db

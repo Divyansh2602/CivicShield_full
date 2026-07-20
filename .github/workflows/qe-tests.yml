@@ -1,0 +1,69 @@
+name: QE Tests
+
+# Runs the full test pyramid against the Dockerized stack on every push/PR to main,
+# and on demand from the Actions tab (Run workflow).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  qe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1) Bring the whole app up in Docker exactly like production.
+      - name: Start stack (Postgres + backend + frontend)
+        run: docker compose up -d --build
+
+      # 2) Wait until the services are actually ready before testing.
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8000/healthz >/dev/null; then echo "backend up"; exit 0; fi
+            sleep 3
+          done
+          echo "backend never became healthy"; docker compose logs backend; exit 1
+      - name: Wait for frontend
+        run: |
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:3000 >/dev/null; then echo "frontend up"; exit 0; fi
+            sleep 3
+          done
+          echo "frontend never came up"; docker compose logs frontend; exit 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test deps
+        run: pip install -r tests/requirements.txt
+
+      # 3) API tests (pytest) — black-box HTTP checks.
+      - name: API tests (pytest)
+        env:
+          BASE_URL: http://localhost:8000
+        run: pytest tests/api -v
+
+      # 4) API tests (Postman collection via Newman).
+      - name: API tests (Postman / Newman)
+        run: npx --yes newman run tests/postman/civicshield.postman_collection.json --env-var baseUrl=http://localhost:8000
+
+      # 5) UI / E2E tests (Selenium). ubuntu-latest ships Chrome; Selenium Manager
+      #    fetches the matching driver automatically.
+      - name: UI tests (Selenium)
+        env:
+          HEADLESS: "1"
+          FRONTEND_URL: http://localhost:3000
+        run: pytest tests/e2e -v
+
+      # Always surface logs and tear the stack down.
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

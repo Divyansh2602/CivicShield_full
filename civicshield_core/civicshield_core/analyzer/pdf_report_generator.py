@@ -2,7 +2,26 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from xml.sax.saxutils import escape
 import datetime
+import re
+
+# Control characters that ReportLab's XML paragraph parser cannot render.
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def _esc(value, default="-"):
+    """Make dynamic text safe for a ReportLab Paragraph.
+
+    Paragraph content is parsed as mini-XML, so raw '<', '>' or '&' in scanned
+    data — e.g. an XSS evidence snippet like '<script>alert(1)</script>' —
+    crashes the parser and 500s the whole report. This is a security scanner
+    ingesting hostile content, so escape the markup and strip control chars.
+    Static '<b>' labels are added outside this helper and stay intact.
+    """
+    text = "" if value is None else str(value)
+    text = _CONTROL_CHARS.sub("", text)
+    return escape(text) if text != "" else default
 
 
 class PDFReportGenerator:
@@ -37,7 +56,7 @@ class PDFReportGenerator:
 
         story.append(Paragraph("CivicShield Security Assessment Report", title))
         story.append(Spacer(1, 10))
-        story.append(Paragraph(f"<b>Target:</b> {target}", body))
+        story.append(Paragraph(f"<b>Target:</b> {_esc(target)}", body))
         story.append(Paragraph(f"<b>Scan Date:</b> {now}", body))
         story.append(Paragraph("<b>Assessment Type:</b> Automated web reconnaissance, parameter testing, and phishing risk analysis support", body))
         story.append(Spacer(1, 16))
@@ -76,12 +95,12 @@ class PDFReportGenerator:
         ]]
         for finding in findings[:12]:
             table_data.append([
-                Paragraph(str(finding.get("risk", "-")), table_cell),
-                Paragraph(str(finding.get("vuln", "-")), table_cell),
-                Paragraph(str(finding.get("param", "-")), table_cell),
-                Paragraph(str(finding.get("method", "-")), table_cell),
+                Paragraph(_esc(finding.get("risk"), "-"), table_cell),
+                Paragraph(_esc(finding.get("vuln"), "-"), table_cell),
+                Paragraph(_esc(finding.get("param"), "-"), table_cell),
+                Paragraph(_esc(finding.get("method"), "-"), table_cell),
                 Paragraph(
-                    str(finding.get("remediation", "Review server-side validation and access controls.")),
+                    _esc(finding.get("remediation"), "Review server-side validation and access controls."),
                     table_cell,
                 ),
             ])
@@ -104,13 +123,13 @@ class PDFReportGenerator:
             story.append(Paragraph("No confirmed vulnerabilities were detected during the automated scan.", body))
         else:
             for index, finding in enumerate(findings, start=1):
-                story.append(Paragraph(f"{index}. {finding.get('vuln', 'Unknown')} ({finding.get('risk', 'LOW')})", subheader))
-                story.append(Paragraph(f"<b>Target:</b> {finding.get('url', '-')}", small))
-                story.append(Paragraph(f"<b>Parameter:</b> {finding.get('param', '-')}", small))
-                story.append(Paragraph(f"<b>Method:</b> {finding.get('method', '-')}", small))
-                story.append(Paragraph(f"<b>Detection Signal:</b> {finding.get('signal', 'Automated finding pattern matched')}", small))
-                story.append(Paragraph(f"<b>Evidence:</b> {finding.get('evidence', 'N/A')}", small))
-                story.append(Paragraph(f"<b>Recommended Fix:</b> {finding.get('remediation', 'Validate inputs and harden the affected endpoint.')}", small))
+                story.append(Paragraph(f"{index}. {_esc(finding.get('vuln'), 'Unknown')} ({_esc(finding.get('risk'), 'LOW')})", subheader))
+                story.append(Paragraph(f"<b>Target:</b> {_esc(finding.get('url'))}", small))
+                story.append(Paragraph(f"<b>Parameter:</b> {_esc(finding.get('param'))}", small))
+                story.append(Paragraph(f"<b>Method:</b> {_esc(finding.get('method'))}", small))
+                story.append(Paragraph(f"<b>Detection Signal:</b> {_esc(finding.get('signal'), 'Automated finding pattern matched')}", small))
+                story.append(Paragraph(f"<b>Evidence:</b> {_esc(finding.get('evidence'), 'N/A')}", small))
+                story.append(Paragraph(f"<b>Recommended Fix:</b> {_esc(finding.get('remediation'), 'Validate inputs and harden the affected endpoint.')}", small))
                 story.append(Spacer(1, 10))
 
         doc.build(story)

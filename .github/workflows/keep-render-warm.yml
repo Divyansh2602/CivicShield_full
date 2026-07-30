@@ -1,8 +1,13 @@
 name: Keep Render Warm
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
+  # No schedule on purpose. Render's free tier gives 750 instance-hours/month
+  # and SUSPENDS the service until next month once they're used up. Spun-down
+  # services consume zero hours, so pinging it 24/7 to keep it warm is exactly
+  # what exhausts the quota and gets it suspended. Let it spin down; the report
+  # download already retries through the ~50s cold start.
+  # This stays as a MANUAL trigger only — run it from the Actions tab a minute
+  # before a live demo to pre-warm the backend.
   workflow_dispatch:
 
 concurrency:

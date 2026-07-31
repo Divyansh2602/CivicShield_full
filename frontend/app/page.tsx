@@ -377,16 +377,22 @@ export default function Home() {
                   <Mail className="w-4 h-4 text-signal" />
                   <span className="font-mono text-[13px]">divyanshg2602@gmail.com</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-signal" />
-                  <span>Dual_Scammers</span>
+                <div className="flex items-start gap-2">
+                  <Users className="w-4 h-4 text-signal mt-0.5" />
+                  <span>
+                    Team Dual_Scammers
+                    <br />
+                    <span className="text-foreground">Divyansh Gupta</span>
+                    {" & "}
+                    <span className="text-foreground">Dolmaa Sharma</span>
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="text-center text-xs text-faint pt-6">
-            © {new Date().getFullYear()} CivicShield AI. All rights reserved.
+            © {new Date().getFullYear()} CivicShield AI · Built by Divyansh Gupta {"&"} Dolmaa Sharma. All rights reserved.
           </div>
         </div>
       </footer>

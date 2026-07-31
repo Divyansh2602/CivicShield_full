@@ -377,6 +377,10 @@ export default function Home() {
                   <Mail className="w-4 h-4 text-signal" />
                   <span className="font-mono text-[13px]">divyanshg2602@gmail.com</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-signal" />
+                  <span className="font-mono text-[13px]">dolmaasharma2005@gmail.com</span>
+                </div>
                 <div className="flex items-start gap-2">
                   <Users className="w-4 h-4 text-signal mt-0.5" />
                   <span>

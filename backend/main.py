@@ -393,7 +393,19 @@ def generate_report(scan_id: int):
 
         report_filename = f"pentest_report_{scan_id}.pdf"
         with report_lock:
-            PDFReportGenerator().generate(data["target"], data["findings"], data.get("summary"), filename=report_filename)
+            # This report renders arbitrary scanned content (e.g. reflected XSS
+            # payloads) into a PDF. Never let a rendering error surface as a raw
+            # 500 — wrap it and return a clean, explained failure.
+            try:
+                PDFReportGenerator().generate(data["target"], data["findings"], data.get("summary"), filename=report_filename)
+            except HTTPException:
+                raise
+            except Exception as exc:
+                print(f"[report] PDF generation failed for scan {scan_id}: {exc}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Report generation failed while rendering this scan's findings.",
+                ) from exc
             if not os.path.exists(report_filename):
                 raise HTTPException(status_code=500, detail="Report generation failed")
 
